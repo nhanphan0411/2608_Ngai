@@ -33,7 +33,7 @@ export default function Home() {
       />
 
       {/* Centered logo */}
-      <div className="fixed inset-0 z-10 flex items-center justify-center px-4">
+      <div className="fixed inset-0 z-10 flex flex-col items-center justify-center px-4">
         <Image
           src={src_hero_logo}
           alt="Ngài"
@@ -42,16 +42,30 @@ export default function Home() {
           priority
           className="h-auto w-[80vw] md:w-[50vw]"
         />
+        <div className="mt-2 flex w-[80vw] justify-between text-sm mobile-only">
+          <p>coming soon</p>
+          <div>
+          <a
+            href="https://www.instagram.com/ngaiofficial/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            keep in touch
+          </a>
+          </div>
+        </div>
       </div>
 
+
       {/* Bottom content */}
-      <div className="fixed bottom-6 left-0 right-0 z-10 flex flex-col items-center text-center">
+      <div className="fixed bottom-6 left-0 right-0 z-10 flex flex-col items-center text-center desktop-only">
         <p className="text-sm">
           coming soon
         </p>
 
         <p className="mt-2 text-sm">
-          <a href="https://www.instagram.com/ngaiofficial/" target="_blank" className="underline">instagram</a> | <a href="mailto:hello@houseofngai.com" target="_blank" className="underline">email</a>
+          <a href="https://www.instagram.com/ngaiofficial/" target="_blank" className="underline">instagram</a> / <a href="mailto:hello@houseofngai.com" target="_blank" className="underline">email</a>
         </p>
       </div>
     </main>

@@ -26,6 +26,8 @@ type Group = {
   rows: SizeRow[];
 };
 
+const DEFAULT_VALUE1 = "original";
+
 function groupKey(value1: string, value2: string) {
   return `${value1}||${value2}`;
 }
@@ -71,6 +73,10 @@ export default function InventoryPage() {
   const [renamingGroupKey, setRenamingGroupKey] = useState<string | null>(null);
   const [renameValue1, setRenameValue1] = useState("");
   const [renameValue2, setRenameValue2] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
+  // ---- group deletion ----
+  const [deletingGroupKey, setDeletingGroupKey] = useState<string | null>(null);
 
   // ---- inline size-row edits, keyed by variant id ("new:<groupKey>" for the add-row) ----
   const [rowEdits, setRowEdits] = useState<Record<string, SizeRow>>({});
@@ -316,22 +322,49 @@ export default function InventoryPage() {
   }
 
   async function saveRename(group: Group) {
-    const newValue1 = renameValue1.trim() || "original";
+    const newValue1 = renameValue1.trim() || DEFAULT_VALUE1;
     const newValue2 = renameValue2.trim();
 
-    if (newValue1 !== group.value1 || newValue2 !== group.value2) {
-      // Every size in the group shares value1/value2, so renaming the group
-      // means updating every row — then repointing its images so they
-      // follow instead of getting orphaned under the old key.
+    // Nothing actually changed — just close the editor.
+    if (newValue1 === group.value1 && newValue2 === group.value2) {
+      setRenamingGroupKey(null);
+      return;
+    }
+
+    const targetKey = groupKey(newValue1, newValue2);
+    const collidesWithOtherGroup = groups.some(
+      (g) => g.key !== group.key && g.key === targetKey
+    );
+
+    if (collidesWithOtherGroup) {
+      const currentLabel = `${group.value1}${group.value2 ? " / " + group.value2 : ""}`;
+      const targetLabel = `${newValue1}${newValue2 ? " / " + newValue2 : ""}`;
+
+      const proceed = confirm(
+        `"${targetLabel}" already exists as a separate group.\n\n` +
+        `Renaming "${currentLabel}" to "${targetLabel}" will MERGE these two groups — ` +
+        `all their sizes and images will combine into one group.\n\n` +
+        `Continue?`
+      );
+
+      if (!proceed) return;
+    }
+
+    setRenaming(true);
+
+    try {
+      // Rename every size row first. If any single request fails, stop
+      // immediately rather than continuing — otherwise the group ends up
+      // half-renamed (some rows on the old value, some on the new one).
       for (const row of group.rows) {
-        await fetch("/api/admin/inventory", {
+        const res = await fetch("/api/admin/inventory", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: row.id,
             collection_slug: collectionSlug,
             product_slug: productSlug,
-            variant1: group.variant1,
+            variant1: group.variant1 || "Color",
             value1: newValue1,
             variant2: group.variant2,
             value2: newValue2,
@@ -343,9 +376,17 @@ export default function InventoryPage() {
             status: row.status,
           }),
         });
+
+        if (!res.ok) {
+          throw new Error(
+            `Failed to rename size "${row.value3}". Stopped before renaming the rest — ` +
+            `please check this group, some sizes may now be inconsistent.`
+          );
+        }
       }
 
-      await fetch("/api/admin/images/repoint", {
+      // Only repoint images once every row has been renamed successfully.
+      const repointRes = await fetch("/api/admin/images/repoint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -357,11 +398,69 @@ export default function InventoryPage() {
         }),
       });
 
+      if (!repointRes.ok) {
+        throw new Error(
+          "Sizes were renamed, but images could not be moved to the new group. " +
+          "Please check this group's images manually."
+        );
+      }
+
       await loadVariants();
       await loadAllImages();
+      setRenamingGroupKey(null);
+    } catch (err: any) {
+      alert(err.message || "Rename failed.");
+      // Refresh regardless, so the UI reflects whatever partial state actually landed.
+      await loadVariants();
+      await loadAllImages();
+    } finally {
+      setRenaming(false);
+    }
+  }
+
+  // ---------------- group deletion (all sizes + their shared images) ----------------
+
+  async function deleteGroup(group: Group) {
+    const label = `${group.value1}${group.value2 ? " / " + group.value2 : ""}`;
+
+    if (
+      !confirm(
+        `Delete "${label}"? This removes every size in this group and its shared images. This cannot be undone.`
+      )
+    ) {
+      return;
     }
 
-    setRenamingGroupKey(null);
+    setDeletingGroupKey(group.key);
+
+    try {
+      for (const row of group.rows) {
+        if (!row.id) continue;
+
+        const res = await fetch("/api/admin/inventory", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: row.id }),
+        });
+
+        if (!res.ok) {
+          throw new Error(
+            `Failed to delete size "${row.value3}". Stopped — some sizes in this group may still remain.`
+          );
+        }
+      }
+
+      if (activeImageGroupKey === group.key) closeImageEditor();
+
+      await loadVariants();
+      await loadAllImages();
+    } catch (err: any) {
+      alert(err.message || "Delete failed.");
+      await loadVariants();
+      await loadAllImages();
+    } finally {
+      setDeletingGroupKey(null);
+    }
   }
 
   // ---------------- size rows (no image controls anywhere in here) ----------------
@@ -435,10 +534,7 @@ export default function InventoryPage() {
   // ---------------- new group ----------------
 
   async function createGroup() {
-    if (!newGroup.value1.trim()) {
-      alert("Enter a value for Color (e.g. Red)");
-      return;
-    }
+    const value1 = newGroup.value1.trim() || DEFAULT_VALUE1;
 
     await fetch("/api/admin/inventory", {
       method: "POST",
@@ -447,7 +543,7 @@ export default function InventoryPage() {
         collection_slug: collectionSlug,
         product_slug: productSlug,
         variant1: newGroup.variant1 || "Color",
-        value1: newGroup.value1,
+        value1,
         variant2: newGroup.variant2 || null,
         value2: newGroup.variant2 ? newGroup.value2 : null,
         variant3: newGroup.variant3 || "Size",
@@ -558,6 +654,7 @@ export default function InventoryPage() {
             const groupImages = imagesForGroup(group);
             const isRenaming = renamingGroupKey === group.key;
             const isEditingImages = activeImageGroupKey === group.key;
+            const isDeleting = deletingGroupKey === group.key;
             const addRowTemplate: SizeRow = {
               id: undefined,
               variant3: group.rows[0]?.variant3 ?? "Size",
@@ -580,9 +677,10 @@ export default function InventoryPage() {
                   {isRenaming ? (
                     <div className="flex flex-wrap items-end gap-3">
                       <div>
-                        <label className={labelClass}>{group.variant1}</label>
+                        <label className={labelClass}>{group.variant1 || "Color"}</label>
                         <input
                           className={inputClass}
+                          placeholder={DEFAULT_VALUE1}
                           value={renameValue1}
                           onChange={(e) => setRenameValue1(e.target.value)}
                         />
@@ -599,13 +697,15 @@ export default function InventoryPage() {
                       )}
                       <button
                         onClick={() => saveRename(group)}
-                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                        disabled={renaming}
+                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
                       >
-                        Save
+                        {renaming ? "Saving…" : "Save"}
                       </button>
                       <button
                         onClick={() => setRenamingGroupKey(null)}
-                        className="text-sm text-gray-500 hover:text-gray-800"
+                        disabled={renaming}
+                        className="text-sm text-gray-500 hover:text-gray-800 disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -621,6 +721,13 @@ export default function InventoryPage() {
                         className="text-xs text-gray-400 hover:text-gray-700"
                       >
                         Rename
+                      </button>
+                      <button
+                        onClick={() => deleteGroup(group)}
+                        disabled={isDeleting}
+                        className="text-xs text-red-400 hover:text-red-700 disabled:opacity-50"
+                      >
+                        {isDeleting ? "Deleting…" : "Delete group"}
                       </button>
                     </div>
                   )}
@@ -996,9 +1103,10 @@ export default function InventoryPage() {
 
               <p className="text-xs text-gray-400 mb-4">
                 Leave Color blank if this product has no color/style split —
-                it'll default to a single shared group. This creates the
-                group's first size; add more sizes from the group's table
-                once it's created.
+                it'll be saved as "{DEFAULT_VALUE1}" and the color picker
+                won't be shown to customers. This creates the group's first
+                size; add more sizes from the group's table once it's
+                created.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -1006,7 +1114,7 @@ export default function InventoryPage() {
                   <label className={labelClass}>Color</label>
                   <input
                     className={inputClass}
-                    placeholder="Red"
+                    placeholder={DEFAULT_VALUE1}
                     value={newGroup.value1}
                     onChange={(e) =>
                       setNewGroup({ ...newGroup, value1: e.target.value })

@@ -75,11 +75,9 @@ export default function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Ngai Store
-            </h1>
+            <img src="https://pub-6dc4b85e0fa049fe813176c2b710444c.r2.dev/Homepage/logo_dark.png" width="50%"></img>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mt-2">
               Admin Dashboard
             </p>
           </div>

@@ -70,109 +70,164 @@ export default function CollectionsPage() {
   const selectClass =
     "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  const labelClass = "block text-xs font-medium text-gray-500 mb-1";
+  const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
   return (
-    <div className="max-w-5xl">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">
+    <div className="w-full max-w-5xl">
+      <h1 className="mb-5 text-xl font-semibold text-gray-900 sm:mb-6">
         Collections
       </h1>
 
-      {/* ================= TABLE ================= */}
+      {/* ================= COLLECTIONS ================= */}
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm mb-8 overflow-hidden">
-        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <section className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm sm:mb-8">
+        <div className="border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
+          <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
             Collections
           </h2>
         </div>
 
         {collections.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">
+          <div className="p-6 text-center text-sm text-gray-400 sm:p-8">
             No collections yet — create your first one below.
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                <th className="p-3">ID</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Slug</th>
-                <th className="p-3">Status</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
+          <>
+            {/* ================= DESKTOP TABLE ================= */}
 
-            <tbody>
+            <div className="hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <th className="p-3">ID</th>
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Slug</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {collections.map((c: any) => (
+                    <tr
+                      key={c.id}
+                      className={`border-t border-gray-100 transition hover:bg-gray-50 ${
+                        form.id === c.id ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      <td className="p-3 text-gray-500">{c.id}</td>
+
+                      <td className="p-3 font-medium text-gray-800">
+                        {c.collection_name}
+                      </td>
+
+                      <td className="p-3 text-gray-500">
+                        {c.collection_slug}
+                      </td>
+
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            c.status === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {c.status}
+                        </span>
+                      </td>
+
+                      <td className="p-3">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => editCollection(c)}
+                            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            onClick={() => deleteCollection(c.id)}
+                            className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ================= MOBILE LIST ================= */}
+
+            <div className="divide-y divide-gray-100 sm:hidden">
               {collections.map((c: any) => (
-                <tr
+                <div
                   key={c.id}
-                  className={`border-t border-gray-100 hover:bg-gray-50 transition ${
+                  className={`p-4 transition ${
                     form.id === c.id ? "bg-blue-50" : ""
                   }`}
                 >
-                  <td className="p-3 text-gray-500">
-                    {c.id}
-                  </td>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate font-medium text-gray-900">
+                          {c.collection_name}
+                        </h3>
 
-                  <td className="p-3 font-medium text-gray-800">
-                    {c.collection_name}
-                  </td>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            c.status === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {c.status}
+                        </span>
+                      </div>
 
-                  <td className="p-3 text-gray-500">
-                    {c.collection_slug}
-                  </td>
+                      <p className="mt-1 truncate text-xs text-gray-500">
+                        /{c.collection_slug}
+                      </p>
+                    </div>
 
-                  <td className="p-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        c.status === "Active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
-                  </td>
-
-                  <td className="p-3">
-                    <div className="flex justify-end gap-3">
+                    <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => editCollection(c)}
-                        className="text-sm text-gray-600 hover:text-gray-900"
+                        className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
                       >
                         Edit
                       </button>
 
                       <button
                         onClick={() => deleteCollection(c.id)}
-                        className="text-sm text-red-500 hover:text-red-700"
+                        className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
                       >
                         Delete
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </section>
 
       {/* ================= FORM ================= */}
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-12">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <section className="mb-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
+        <div className="mb-4 sm:mb-5">
+          <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
             {form.id ? "Edit Collection" : "New Collection"}
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>
-              Collection Name
-            </label>
+            <label className={labelClass}>Collection Name</label>
 
             <input
               className={inputClass}
@@ -187,9 +242,7 @@ export default function CollectionsPage() {
           </div>
 
           <div>
-            <label className={labelClass}>
-              Slug
-            </label>
+            <label className={labelClass}>Slug</label>
 
             <input
               className={inputClass}
@@ -205,9 +258,7 @@ export default function CollectionsPage() {
         </div>
 
         <div className="mb-4">
-          <label className={labelClass}>
-            Description
-          </label>
+          <label className={labelClass}>Description</label>
 
           <textarea
             className={inputClass}
@@ -223,9 +274,7 @@ export default function CollectionsPage() {
         </div>
 
         <div className="mb-4">
-          <label className={labelClass}>
-            Status
-          </label>
+          <label className={labelClass}>Status</label>
 
           <select
             className={selectClass + " w-full"}
@@ -242,11 +291,11 @@ export default function CollectionsPage() {
           </select>
         </div>
 
-        <div className="flex justify-end mt-6 gap-6">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:mt-6 sm:flex-row sm:justify-end sm:gap-3">
           {form.id && (
             <button
               onClick={newCollection}
-              className="text-sm text-gray-500 hover:text-gray-800"
+              className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:w-auto"
             >
               Cancel edit
             </button>
@@ -254,7 +303,7 @@ export default function CollectionsPage() {
 
           <button
             onClick={saveCollection}
-            className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+            className="w-full rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
           >
             {form.id ? "Update Collection" : "Create Collection"}
           </button>
