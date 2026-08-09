@@ -5,7 +5,12 @@ import { processImage } from "@/lib/imageProcessing";
 
 type StagedImage =
   | { kind: "existing"; id: number; url: string }
-  | { kind: "new"; tempId: string; file: File; previewUrl: string };
+  | {
+    kind: "new";
+    tempId: string;
+    file: File;
+    previewUrl: string;
+  };
 
 type SizeRow = {
   id?: number;
@@ -26,6 +31,14 @@ type Group = {
   rows: SizeRow[];
 };
 
+type NewSize = {
+  value3: string;
+  stock: number;
+  priceVND: number;
+  priceUSD: number;
+  status: string;
+};
+
 const DEFAULT_VALUE1 = "original";
 
 function groupKey(value1: string, value2: string) {
@@ -33,56 +46,99 @@ function groupKey(value1: string, value2: string) {
 }
 
 export default function InventoryPage() {
-  // ---- shared pickers ----
+  // ============================================================
+  // PICKERS
+  // ============================================================
+
   const [collections, setCollections] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [collectionSlug, setCollectionSlug] = useState("");
   const [productSlug, setProductSlug] = useState("");
 
-  // ---- raw data for the current product ----
+  // ============================================================
+  // DATA
+  // ============================================================
+
   const [variants, setVariants] = useState<any[]>([]);
   const [allImages, setAllImages] = useState<any[]>([]);
 
-  // ---- new color/style group form (creates the group's first size) ----
+  // ============================================================
+  // EDIT GROUP MODAL
+  // ============================================================
+
+  const [editingGroupKey, setEditingGroupKey] = useState<
+    string | null
+  >(null);
+
+  // ============================================================
+  // NEW GROUP
+  // ============================================================
+
   const emptyNewGroup = {
     variant1: "Color",
     value1: "",
     variant2: "",
     value2: "",
     variant3: "Size",
-    value3: "",
-    stock: 0,
-    priceVND: 0,
-    priceUSD: 0,
     status: "Active",
   };
+
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroup, setNewGroup] = useState(emptyNewGroup);
 
-  // ---- image editor — one group's images open for editing at a time ----
-  const [activeImageGroupKey, setActiveImageGroupKey] = useState<string | null>(null);
+  const [newSizes, setNewSizes] = useState<NewSize[]>([
+    {
+      value3: "",
+      stock: 0,
+      priceVND: 0,
+      priceUSD: 0,
+      status: "Active",
+    },
+  ]);
+
+  // ============================================================
+  // IMAGE EDITOR
+  // ============================================================
+
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [originalIds, setOriginalIds] = useState<number[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [processProgress, setProcessProgress] = useState({ done: 0, total: 0 });
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [processProgress, setProcessProgress] = useState({
+    done: 0,
+    total: 0,
+  });
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(
+    null
+  );
 
-  // ---- group header rename (value1/value2) — one group at a time ----
-  const [renamingGroupKey, setRenamingGroupKey] = useState<string | null>(null);
+  // ============================================================
+  // GROUP RENAME
+  // ============================================================
+
+  const [renaming, setRenaming] = useState(false);
   const [renameValue1, setRenameValue1] = useState("");
   const [renameValue2, setRenameValue2] = useState("");
-  const [renaming, setRenaming] = useState(false);
 
-  // ---- group deletion ----
-  const [deletingGroupKey, setDeletingGroupKey] = useState<string | null>(null);
+  // ============================================================
+  // GROUP DELETE
+  // ============================================================
 
-  // ---- inline size-row edits, keyed by variant id ("new:<groupKey>" for the add-row) ----
-  const [rowEdits, setRowEdits] = useState<Record<string, SizeRow>>({});
-  const [savingRowKey, setSavingRowKey] = useState<string | null>(null);
+  const [deletingGroupKey, setDeletingGroupKey] = useState<
+    string | null
+  >(null);
 
-  // ---------------- shared pickers ----------------
+  // ============================================================
+  // SIZE EDITING
+  // ============================================================
+
+  const [editingRows, setEditingRows] = useState<SizeRow[]>([]);
+  const [deletedRowIds, setDeletedRowIds] = useState<number[]>([]);
+
+  // ============================================================
+  // SHARED PICKERS
+  // ============================================================
 
   useEffect(() => {
     fetch("/api/admin/collections")
@@ -116,27 +172,43 @@ export default function InventoryPage() {
     setAllImages([]);
     setShowNewGroup(false);
     setNewGroup(emptyNewGroup);
-    closeImageEditor();
-    setRenamingGroupKey(null);
-    setRowEdits({});
+
+    setNewSizes([
+      {
+        value3: "",
+        stock: 0,
+        priceVND: 0,
+        priceUSD: 0,
+        status: "Active",
+      },
+    ]);
+
+    closeEditModal();
   }
 
-  // ---------------- data loading ----------------
+  // ============================================================
+  // DATA LOADING
+  // ============================================================
 
   async function loadVariants() {
-    const res = await fetch(`/api/admin/inventory?product=${productSlug}`);
+    const res = await fetch(
+      `/api/admin/inventory?product=${productSlug}`
+    );
+
     setVariants((await res.json()) as any[]);
   }
 
-  // No value1 param → the existing GET route returns every image for the
-  // product in one call (see app/api/admin/images/route.ts). We group them
-  // client-side instead of re-fetching per group.
   async function loadAllImages() {
-    const res = await fetch(`/api/admin/images?product_slug=${productSlug}`);
+    const res = await fetch(
+      `/api/admin/images?product_slug=${productSlug}`
+    );
+
     setAllImages((await res.json()) as any[]);
   }
 
-  // ---------------- grouping: variants → color/style groups ----------------
+  // ============================================================
+  // GROUPING
+  // ============================================================
 
   const groups: Group[] = useMemo(() => {
     const map = new Map<string, Group>();
@@ -171,21 +243,29 @@ export default function InventoryPage() {
 
   function imagesForGroup(group: Group) {
     return allImages.filter(
-      (img) => img.value1 === group.value1 && (img.value2 ?? "") === group.value2
+      (img) =>
+        img.value1 === group.value1 &&
+        (img.value2 ?? "") === group.value2
     );
   }
 
-  // ---------------- image editor (same sync mechanics as before, scoped to one group) ----------------
+  // ============================================================
+  // EDIT MODAL
+  // ============================================================
 
-  function closeImageEditor() {
-    setActiveImageGroupKey(null);
-    setStaged([]);
-    setOriginalIds([]);
-    setDirty(false);
-  }
+  function openEditModal(group: Group) {
+    setEditingGroupKey(group.key);
 
-  function openImageEditor(group: Group) {
-    setActiveImageGroupKey(group.key);
+    setEditingRows(
+      group.rows.map((row) => ({
+        ...row,
+      }))
+    );
+
+    setDeletedRowIds([]);
+
+    setRenameValue1(group.value1);
+    setRenameValue2(group.value2);
 
     const imgs = imagesForGroup(group);
 
@@ -196,38 +276,73 @@ export default function InventoryPage() {
         url: img.url_thumb ?? img.url,
       }))
     );
+
     setOriginalIds(imgs.map((img) => img.id));
     setDirty(false);
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  function closeEditModal() {
+    setEditingGroupKey(null);
+    setEditingRows([]);
+    setDeletedRowIds([]);
+    setStaged([]);
+    setOriginalIds([]);
+    setDirty(false);
+    setRenaming(false);
+    setSyncing(false);
+    setProcessing(false);
+  }
+
+  const editingGroup = groups.find(
+    (group) => group.key === editingGroupKey
+  );
+
+  // ============================================================
+  // IMAGE EDITING
+  // ============================================================
+
+  function handleFileSelect(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     const files = e.target.files;
+
     if (!files || files.length === 0) return;
 
-    const newItems: StagedImage[] = Array.from(files).map((file) => ({
-      kind: "new",
-      tempId: crypto.randomUUID(),
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const newItems: StagedImage[] = Array.from(files).map(
+      (file) => ({
+        kind: "new",
+        tempId: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    );
 
     setStaged((prev) => [...prev, ...newItems]);
     setDirty(true);
+
     e.target.value = "";
   }
 
-  function handleRemove(index: number) {
+  function handleRemoveImage(index: number) {
     setStaged((prev) => prev.filter((_, i) => i !== index));
     setDirty(true);
   }
 
   function handleDrop(targetIndex: number) {
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    if (
+      draggedIndex === null ||
+      draggedIndex === targetIndex
+    ) {
+      return;
+    }
 
     setStaged((prev) => {
       const reordered = [...prev];
+
       const [moved] = reordered.splice(draggedIndex, 1);
+
       reordered.splice(targetIndex, 0, moved);
+
       return reordered;
     });
 
@@ -235,13 +350,19 @@ export default function InventoryPage() {
     setDraggedIndex(null);
   }
 
-  async function syncImages(group: Group) {
-    setSyncing(true);
+  // ============================================================
+  // SAVE IMAGES
+  // ============================================================
 
+  async function syncImages(group: Group) {
     const stagedExistingIds = staged
       .filter(
-        (s): s is Extract<StagedImage, { kind: "existing" }> =>
-          s.kind === "existing"
+        (
+          s
+        ): s is Extract<
+          StagedImage,
+          { kind: "existing" }
+        > => s.kind === "existing"
       )
       .map((s) => s.id);
 
@@ -250,46 +371,93 @@ export default function InventoryPage() {
     );
 
     const newFiles = staged.filter(
-      (s): s is Extract<StagedImage, { kind: "new" }> => s.kind === "new"
+      (
+        s
+      ): s is Extract<
+        StagedImage,
+        { kind: "new" }
+      > => s.kind === "new"
     );
 
     const order = staged.map((s) =>
       s.kind === "existing"
-        ? { type: "existing", id: s.id }
+        ? {
+          type: "existing",
+          id: s.id,
+        }
         : {
           type: "new",
-          fileIndex: newFiles.findIndex((f) => f.tempId === s.tempId),
+          fileIndex: newFiles.findIndex(
+            (f) => f.tempId === s.tempId
+          ),
         }
     );
 
     const formData = new FormData();
+
     formData.append("product_slug", productSlug);
     formData.append("value1", group.value1);
-    if (group.value2) formData.append("value2", group.value2);
-    formData.append("deleteIds", JSON.stringify(deleteIds));
-    formData.append("order", JSON.stringify(order));
+
+    if (group.value2) {
+      formData.append("value2", group.value2);
+    }
+
+    formData.append(
+      "deleteIds",
+      JSON.stringify(deleteIds)
+    );
+
+    formData.append(
+      "order",
+      JSON.stringify(order)
+    );
 
     if (newFiles.length > 0) {
       setProcessing(true);
-      setProcessProgress({ done: 0, total: newFiles.length });
+
+      setProcessProgress({
+        done: 0,
+        total: newFiles.length,
+      });
 
       for (let i = 0; i < newFiles.length; i++) {
-        const { thumb, mid, large } = await processImage(newFiles[i].file);
+        const { thumb, mid, large } =
+          await processImage(newFiles[i].file);
 
-        formData.append(`new_thumb_${i}`, thumb, `thumb-${i}.webp`);
-        formData.append(`new_mid_${i}`, mid, `mid-${i}.webp`);
-        formData.append(`new_large_${i}`, large, `large-${i}.webp`);
+        formData.append(
+          `new_thumb_${i}`,
+          thumb,
+          `thumb-${i}.webp`
+        );
 
-        setProcessProgress({ done: i + 1, total: newFiles.length });
+        formData.append(
+          `new_mid_${i}`,
+          mid,
+          `mid-${i}.webp`
+        );
+
+        formData.append(
+          `new_large_${i}`,
+          large,
+          `large-${i}.webp`
+        );
+
+        setProcessProgress({
+          done: i + 1,
+          total: newFiles.length,
+        });
       }
 
       setProcessing(false);
     }
 
-    const res = await fetch("/api/admin/images/sync", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await fetch(
+      "/api/admin/images/sync",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
     const data = (await res.json()) as {
       images?: any[];
@@ -298,134 +466,455 @@ export default function InventoryPage() {
     };
 
     if (!res.ok) {
-      alert(data.error || "Image sync failed");
-      setSyncing(false);
-      return;
+      throw new Error(
+        data.error || "Image sync failed"
+      );
     }
 
     if (data.failures?.length) {
-      alert(`Some changes couldn't be completed:\n${data.failures.join("\n")}`);
+      throw new Error(
+        `Some image changes couldn't be completed:\n${data.failures.join(
+          "\n"
+        )}`
+      );
     }
-
-    await loadAllImages();
-    setDirty(false);
-    setSyncing(false);
-    closeImageEditor();
   }
 
-  // ---------------- group rename (value1/value2 for every size in the group) ----------------
+  // ============================================================
+  // SAVE ALL
+  // ============================================================
 
-  function startRename(group: Group) {
-    setRenamingGroupKey(group.key);
-    setRenameValue1(group.value1);
-    setRenameValue2(group.value2);
-  }
+  async function saveAllChanges() {
+    if (!editingGroup) return;
 
-  async function saveRename(group: Group) {
-    const newValue1 = renameValue1.trim() || DEFAULT_VALUE1;
-    const newValue2 = renameValue2.trim();
+    if (processing || syncing || renaming) return;
 
-    // Nothing actually changed — just close the editor.
-    if (newValue1 === group.value1 && newValue2 === group.value2) {
-      setRenamingGroupKey(null);
+    // Validate all remaining sizes first.
+    const invalidRow = editingRows.find(
+      (row) => !row.value3.trim()
+    );
+
+    if (invalidRow) {
+      alert("Please enter a size for every size row.");
       return;
     }
 
-    const targetKey = groupKey(newValue1, newValue2);
-    const collidesWithOtherGroup = groups.some(
-      (g) => g.key !== group.key && g.key === targetKey
-    );
+    setSyncing(true);
 
-    if (collidesWithOtherGroup) {
-      const currentLabel = `${group.value1}${group.value2 ? " / " + group.value2 : ""}`;
-      const targetLabel = `${newValue1}${newValue2 ? " / " + newValue2 : ""}`;
+    const oldGroup = editingGroup;
 
-      const proceed = confirm(
-        `"${targetLabel}" already exists as a separate group.\n\n` +
-        `Renaming "${currentLabel}" to "${targetLabel}" will MERGE these two groups — ` +
-        `all their sizes and images will combine into one group.\n\n` +
-        `Continue?`
-      );
+    const newValue1 =
+      renameValue1.trim() || DEFAULT_VALUE1;
 
-      if (!proceed) return;
-    }
+    const newValue2 = renameValue2.trim();
 
-    setRenaming(true);
+    const renameChanged =
+      newValue1 !== oldGroup.value1 ||
+      newValue2 !== oldGroup.value2;
 
     try {
-      // Rename every size row first. If any single request fails, stop
-      // immediately rather than continuing — otherwise the group ends up
-      // half-renamed (some rows on the old value, some on the new one).
-      for (const row of group.rows) {
-        const res = await fetch("/api/admin/inventory", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: row.id,
-            collection_slug: collectionSlug,
-            product_slug: productSlug,
-            variant1: group.variant1 || "Color",
-            value1: newValue1,
-            variant2: group.variant2,
-            value2: newValue2,
-            variant3: row.variant3,
-            value3: row.value3,
-            stock: row.stock,
-            priceVND: row.priceVND,
-            priceUSD: row.priceUSD,
-            status: row.status,
-          }),
+      // --------------------------------------------------------
+      // 1. SAVE IMAGES FIRST
+      // --------------------------------------------------------
+      //
+      // Images still belong to the OLD group at this point.
+      // So sync them before repointing the group name.
+      //
+
+      const stagedExistingIds = staged
+        .filter(
+          (
+            s
+          ): s is Extract<
+            StagedImage,
+            { kind: "existing" }
+          > => s.kind === "existing"
+        )
+        .map((s) => s.id);
+
+      const newFiles = staged.filter(
+        (
+          s
+        ): s is Extract<
+          StagedImage,
+          { kind: "new" }
+        > => s.kind === "new"
+      );
+
+      const deleteIds = originalIds.filter(
+        (id) => !stagedExistingIds.includes(id)
+      );
+
+      const order = staged.map((s) =>
+        s.kind === "existing"
+          ? {
+            type: "existing",
+            id: s.id,
+          }
+          : {
+            type: "new",
+            fileIndex: newFiles.findIndex(
+              (f) => f.tempId === s.tempId
+            ),
+          }
+      );
+
+      const formData = new FormData();
+
+      formData.append(
+        "product_slug",
+        productSlug
+      );
+
+      formData.append(
+        "value1",
+        oldGroup.value1
+      );
+
+      if (oldGroup.value2) {
+        formData.append(
+          "value2",
+          oldGroup.value2
+        );
+      }
+
+      formData.append(
+        "deleteIds",
+        JSON.stringify(deleteIds)
+      );
+
+      formData.append(
+        "order",
+        JSON.stringify(order)
+      );
+
+      if (newFiles.length > 0) {
+        setProcessing(true);
+
+        setProcessProgress({
+          done: 0,
+          total: newFiles.length,
         });
+
+        for (
+          let i = 0;
+          i < newFiles.length;
+          i++
+        ) {
+          const {
+            thumb,
+            mid,
+            large,
+          } = await processImage(
+            newFiles[i].file
+          );
+
+          formData.append(
+            `new_thumb_${i}`,
+            thumb,
+            `thumb-${i}.webp`
+          );
+
+          formData.append(
+            `new_mid_${i}`,
+            mid,
+            `mid-${i}.webp`
+          );
+
+          formData.append(
+            `new_large_${i}`,
+            large,
+            `large-${i}.webp`
+          );
+
+          setProcessProgress({
+            done: i + 1,
+            total: newFiles.length,
+          });
+        }
+
+        setProcessing(false);
+      }
+
+      const imageRes = await fetch(
+        "/api/admin/images/sync",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const imageData =
+        (await imageRes.json()) as {
+          images?: any[];
+          failures?: string[];
+          error?: string;
+        };
+
+      if (!imageRes.ok) {
+        throw new Error(
+          imageData.error ||
+          "Image sync failed."
+        );
+      }
+
+      if (
+        imageData.failures?.length
+      ) {
+        throw new Error(
+          `Some image changes couldn't be completed:\n${imageData.failures.join(
+            "\n"
+          )}`
+        );
+      }
+
+      // --------------------------------------------------------
+      // 2. DELETE SIZE ROWS
+      // --------------------------------------------------------
+
+      for (const id of deletedRowIds) {
+        const res = await fetch(
+          "/api/admin/inventory",
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              id,
+            }),
+          }
+        );
 
         if (!res.ok) {
           throw new Error(
-            `Failed to rename size "${row.value3}". Stopped before renaming the rest — ` +
-            `please check this group, some sizes may now be inconsistent.`
+            "Failed to delete a size."
           );
         }
       }
 
-      // Only repoint images once every row has been renamed successfully.
-      const repointRes = await fetch("/api/admin/images/repoint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_slug: productSlug,
-          old_value1: group.value1,
-          old_value2: group.value2 || null,
-          new_value1: newValue1,
-          new_value2: newValue2 || null,
-        }),
-      });
+      // --------------------------------------------------------
+      // 3. SAVE / UPDATE ALL SIZE ROWS
+      // --------------------------------------------------------
 
-      if (!repointRes.ok) {
-        throw new Error(
-          "Sizes were renamed, but images could not be moved to the new group. " +
-          "Please check this group's images manually."
+      for (const row of editingRows) {
+        const res = await fetch(
+          "/api/admin/inventory",
+          {
+            method: row.id
+              ? "PUT"
+              : "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              id: row.id,
+              collection_slug:
+                collectionSlug,
+              product_slug:
+                productSlug,
+              variant1:
+                oldGroup.variant1 ||
+                "Color",
+              value1:
+                renameChanged
+                  ? newValue1
+                  : oldGroup.value1,
+              variant2:
+                oldGroup.variant2,
+              value2:
+                renameChanged
+                  ? newValue2
+                  : oldGroup.value2,
+              variant3:
+                row.variant3 ||
+                "Size",
+              value3:
+                row.value3,
+              stock:
+                row.stock,
+              priceVND:
+                row.priceVND,
+              priceUSD:
+                row.priceUSD,
+              status:
+                row.status,
+            }),
+          }
         );
+
+        if (!res.ok) {
+          throw new Error(
+            `Failed to save size "${row.value3}".`
+          );
+        }
       }
+
+      // --------------------------------------------------------
+      // 4. REPOINT IMAGES IF GROUP NAME CHANGED
+      // --------------------------------------------------------
+
+      if (renameChanged) {
+        const repointRes =
+          await fetch(
+            "/api/admin/images/repoint",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                product_slug:
+                  productSlug,
+                old_value1:
+                  oldGroup.value1,
+                old_value2:
+                  oldGroup.value2 ||
+                  null,
+                new_value1:
+                  newValue1,
+                new_value2:
+                  newValue2 ||
+                  null,
+              }),
+            }
+          );
+
+        if (!repointRes.ok) {
+          throw new Error(
+            "Sizes were saved, but images could not be moved to the new group name."
+          );
+        }
+      }
+
+      // --------------------------------------------------------
+      // 5. REFRESH EVERYTHING
+      // --------------------------------------------------------
 
       await loadVariants();
       await loadAllImages();
-      setRenamingGroupKey(null);
+
+      // Update the currently opened modal to the new state.
+      const refreshedRes = await fetch(
+        `/api/admin/inventory?product=${productSlug}`
+      );
+
+      const refreshedVariants =
+        (await refreshedRes.json()) as any[];
+
+      const refreshedGroupRows =
+        refreshedVariants.filter(
+          (v) =>
+            v.value1 ===
+            newValue1 &&
+            (v.value2 ?? "") ===
+            newValue2
+        );
+
+      setEditingRows(
+        refreshedGroupRows.map(
+          (v) => ({
+            id: v.id,
+            variant3:
+              v.variant3 ??
+              "Size",
+            value3:
+              v.value3 ?? "",
+            stock:
+              v.stock ?? 0,
+            priceVND:
+              v.priceVND ?? 0,
+            priceUSD:
+              v.priceUSD ?? 0,
+            status:
+              v.status ??
+              "Active",
+          })
+        )
+      );
+
+      const refreshedImages =
+        await fetch(
+          `/api/admin/images?product_slug=${productSlug}`
+        );
+
+      const refreshedImageData =
+        (await refreshedImages.json()) as any[];
+
+      const newGroupImages =
+        refreshedImageData.filter(
+          (img) =>
+            img.value1 ===
+            newValue1 &&
+            (img.value2 ?? "") ===
+            newValue2
+        );
+
+      setStaged(
+        newGroupImages.map(
+          (img) => ({
+            kind: "existing" as const,
+            id: img.id,
+            url:
+              img.url_thumb ??
+              img.url,
+          })
+        )
+      );
+
+      setOriginalIds(
+        newGroupImages.map(
+          (img) => img.id
+        )
+      );
+
+      setEditingGroupKey(
+        groupKey(
+          newValue1,
+          newValue2
+        )
+      );
+
+      setRenameValue1(newValue1);
+      setRenameValue2(newValue2);
+
+      setDeletedRowIds([]);
+      setDirty(false);
+
+      alert("All changes saved.");
     } catch (err: any) {
-      alert(err.message || "Rename failed.");
-      // Refresh regardless, so the UI reflects whatever partial state actually landed.
+      alert(
+        err.message ||
+        "Failed to save changes."
+      );
+
       await loadVariants();
       await loadAllImages();
     } finally {
+      setProcessing(false);
+      setSyncing(false);
       setRenaming(false);
     }
   }
 
-  // ---------------- group deletion (all sizes + their shared images) ----------------
+  // ============================================================
+  // DELETE GROUP
+  // ============================================================
 
   async function deleteGroup(group: Group) {
-    const label = `${group.value1}${group.value2 ? " / " + group.value2 : ""}`;
+    const label = `${group.value1}${group.value2
+        ? " / " + group.value2
+        : ""
+      }`;
 
     if (
       !confirm(
-        `Delete "${label}"? This removes every size in this group and its shared images. This cannot be undone.`
+        `Delete "${label}"?\n\n` +
+        `This removes every size in this group and its shared images.\n\n` +
+        `This cannot be undone.`
       )
     ) {
       return;
@@ -437,25 +926,41 @@ export default function InventoryPage() {
       for (const row of group.rows) {
         if (!row.id) continue;
 
-        const res = await fetch("/api/admin/inventory", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: row.id }),
-        });
+        const res = await fetch(
+          "/api/admin/inventory",
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              id: row.id,
+            }),
+          }
+        );
 
         if (!res.ok) {
           throw new Error(
-            `Failed to delete size "${row.value3}". Stopped — some sizes in this group may still remain.`
+            `Failed to delete size "${row.value3}".`
           );
         }
       }
 
-      if (activeImageGroupKey === group.key) closeImageEditor();
+      if (
+        editingGroupKey === group.key
+      ) {
+        closeEditModal();
+      }
 
       await loadVariants();
       await loadAllImages();
     } catch (err: any) {
-      alert(err.message || "Delete failed.");
+      alert(
+        err.message ||
+        "Delete failed."
+      );
+
       await loadVariants();
       await loadAllImages();
     } finally {
@@ -463,104 +968,208 @@ export default function InventoryPage() {
     }
   }
 
-  // ---------------- size rows (no image controls anywhere in here) ----------------
+  // ============================================================
+  // SIZE EDITING
+  // ============================================================
 
-  function rowKey(group: Group, id: number | undefined) {
-    return id !== undefined ? `row:${id}` : `new:${group.key}`;
+  function updateEditingRow(
+    index: number,
+    patch: Partial<SizeRow>
+  ) {
+    setEditingRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+            ...row,
+            ...patch,
+          }
+          : row
+      )
+    );
+
+    setDirty(true);
   }
 
-  function getRowEdit(group: Group, row: SizeRow): SizeRow {
-    return rowEdits[rowKey(group, row.id)] ?? row;
-  }
-
-  function updateRowEdit(group: Group, row: SizeRow, patch: Partial<SizeRow>) {
-    const key = rowKey(group, row.id);
-    setRowEdits((prev) => ({
+  function addSizeToEditingGroup() {
+    setEditingRows((prev) => [
       ...prev,
-      [key]: { ...getRowEdit(group, row), ...patch },
-    }));
+      {
+        id: undefined,
+        variant3:
+          editingGroup?.rows[0]
+            ?.variant3 ||
+          "Size",
+        value3: "",
+        stock: 0,
+        priceVND: 0,
+        priceUSD: 0,
+        status: "Active",
+      },
+    ]);
+
+    setDirty(true);
   }
 
-  async function saveRow(group: Group, row: SizeRow) {
-    const edited = getRowEdit(group, row);
-    const key = rowKey(group, row.id);
-    setSavingRowKey(key);
+  function deleteEditingSize(
+    row: SizeRow,
+    index: number
+  ) {
+    if (row.id) {
+      setDeletedRowIds((prev) =>
+        prev.includes(row.id!)
+          ? prev
+          : [...prev, row.id!]
+      );
+    }
 
-    const method = row.id ? "PUT" : "POST";
+    setEditingRows((prev) =>
+      prev.filter(
+        (_, i) => i !== index
+      )
+    );
 
-    await fetch("/api/admin/inventory", {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: row.id,
-        collection_slug: collectionSlug,
-        product_slug: productSlug,
-        variant1: group.variant1,
-        value1: group.value1,
-        variant2: group.variant2,
-        value2: group.value2,
-        variant3: edited.variant3 || "Size",
-        value3: edited.value3,
-        stock: edited.stock,
-        priceVND: edited.priceVND,
-        priceUSD: edited.priceUSD,
-        status: edited.status,
-      }),
-    });
-
-    setRowEdits((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-
-    setSavingRowKey(null);
-    await loadVariants();
+    setDirty(true);
   }
 
-  async function deleteRow(id: number) {
-    if (!confirm("Delete this size?")) return;
+  // ============================================================
+  // NEW GROUP
+  // ============================================================
 
-    await fetch("/api/admin/inventory", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-
-    await loadVariants();
-    await loadAllImages();
+  function addNewSize() {
+    setNewSizes((prev) => [
+      ...prev,
+      {
+        value3: "",
+        stock: 0,
+        priceVND: 0,
+        priceUSD: 0,
+        status: "Active",
+      },
+    ]);
   }
 
-  // ---------------- new group ----------------
+  function updateNewSize(
+    index: number,
+    patch: Partial<NewSize>
+  ) {
+    setNewSizes((prev) =>
+      prev.map((size, i) =>
+        i === index
+          ? {
+            ...size,
+            ...patch,
+          }
+          : size
+      )
+    );
+  }
+
+  function removeNewSize(index: number) {
+    setNewSizes((prev) =>
+      prev.length === 1
+        ? prev
+        : prev.filter(
+          (_, i) => i !== index
+        )
+    );
+  }
 
   async function createGroup() {
-    const value1 = newGroup.value1.trim() || DEFAULT_VALUE1;
+    const value1 =
+      newGroup.value1.trim() ||
+      DEFAULT_VALUE1;
 
-    await fetch("/api/admin/inventory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        collection_slug: collectionSlug,
-        product_slug: productSlug,
-        variant1: newGroup.variant1 || "Color",
-        value1,
-        variant2: newGroup.variant2 || null,
-        value2: newGroup.variant2 ? newGroup.value2 : null,
-        variant3: newGroup.variant3 || "Size",
-        value3: newGroup.value3,
-        stock: newGroup.stock,
-        priceVND: newGroup.priceVND,
-        priceUSD: newGroup.priceUSD,
-        status: newGroup.status,
-      }),
-    });
+    const validSizes =
+      newSizes.filter(
+        (size) =>
+          size.value3.trim()
+      );
 
-    setNewGroup(emptyNewGroup);
-    setShowNewGroup(false);
-    await loadVariants();
+    if (validSizes.length === 0) {
+      alert(
+        "Please add at least one size."
+      );
+      return;
+    }
+
+    try {
+      for (const size of validSizes) {
+        const res = await fetch(
+          "/api/admin/inventory",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              collection_slug:
+                collectionSlug,
+              product_slug:
+                productSlug,
+              variant1:
+                newGroup.variant1 ||
+                "Color",
+              value1,
+              variant2:
+                newGroup.variant2 ||
+                null,
+              value2:
+                newGroup.variant2
+                  ? newGroup.value2
+                  : null,
+              variant3:
+                newGroup.variant3 ||
+                "Size",
+              value3:
+                size.value3,
+              stock:
+                size.stock,
+              priceVND:
+                size.priceVND,
+              priceUSD:
+                size.priceUSD,
+              status:
+                size.status,
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error(
+            `Failed to create size "${size.value3}".`
+          );
+        }
+      }
+
+      setNewGroup(
+        emptyNewGroup
+      );
+
+      setNewSizes([
+        {
+          value3: "",
+          stock: 0,
+          priceVND: 0,
+          priceUSD: 0,
+          status: "Active",
+        },
+      ]);
+
+      setShowNewGroup(false);
+
+      await loadVariants();
+    } catch (err: any) {
+      alert(
+        err.message ||
+        "Failed to create group."
+      );
+    }
   }
 
-  // ---------------- shared styles ----------------
+  // ============================================================
+  // STYLES
+  // ============================================================
 
   const selectClass =
     "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
@@ -568,64 +1177,117 @@ export default function InventoryPage() {
   const inputClass =
     "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  const labelClass = "block text-xs font-medium text-gray-500 mb-1";
+  const labelClass =
+    "block text-xs font-medium text-gray-500 mb-1";
 
-  const cellInputClass =
-    "w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500";
+  const selectedProductName =
+    products.find(
+      (p) =>
+        p.product_slug ===
+        productSlug
+    )?.product_name;
 
-  const selectedProductName = products.find(
-    (p) => p.product_slug === productSlug
-  )?.product_name;
+  const selectedCollectionName =
+    collections.find(
+      (c) =>
+        c.collection_slug ===
+        collectionSlug
+    )?.collection_name;
 
-  const selectedCollectionName = collections.find(
-    (c) => c.collection_slug === collectionSlug
-  )?.collection_name;
-
-  // ---------------- render ----------------
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
-    <div className="w-full max-w-5xl">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">Inventory</h1>
+    <div>
+      <h1 className="mb-6 text-2xl font-semibold text-gray-900">
+        Inventory
+      </h1>
 
-      {/* Picker bar */}
+      {/* ======================================================
+          PICKER
+      ====================================================== */}
+
       <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex w-full flex-col sm:w-auto">
-          <label className={labelClass}>Collection</label>
+          <label className={labelClass}>
+            Collection
+          </label>
+
           <select
             className={selectClass}
             value={collectionSlug}
-            onChange={(e) => setCollectionSlug(e.target.value)}
+            onChange={(e) =>
+              setCollectionSlug(
+                e.target.value
+              )
+            }
           >
-            <option value="">Select collection</option>
-            {collections.map((c: any) => (
-              <option key={c.collection_slug} value={c.collection_slug}>
-                {c.collection_name}
-              </option>
-            ))}
+            <option value="">
+              Select collection
+            </option>
+
+            {collections.map(
+              (c: any) => (
+                <option
+                  key={
+                    c.collection_slug
+                  }
+                  value={
+                    c.collection_slug
+                  }
+                >
+                  {c.collection_name}
+                </option>
+              )
+            )}
           </select>
         </div>
 
         <div className="flex w-full flex-col sm:w-auto">
-          <label className={labelClass}>Product</label>
+          <label className={labelClass}>
+            Product
+          </label>
+
           <select
             className={selectClass}
             value={productSlug}
-            onChange={(e) => setProductSlug(e.target.value)}
+            onChange={(e) =>
+              setProductSlug(
+                e.target.value
+              )
+            }
             disabled={!collectionSlug}
           >
-            <option value="">Select product</option>
-            {products.map((p: any) => (
-              <option key={p.product_slug} value={p.product_slug}>
-                {p.product_name}
-              </option>
-            ))}
+            <option value="">
+              Select product
+            </option>
+
+            {products.map(
+              (p: any) => (
+                <option
+                  key={
+                    p.product_slug
+                  }
+                  value={
+                    p.product_slug
+                  }
+                >
+                  {p.product_name}
+                </option>
+              )
+            )}
           </select>
         </div>
 
         {productSlug && (
           <div className="w-full text-xs text-gray-400 sm:ml-auto sm:w-auto sm:text-sm">
-            {selectedCollectionName}{" "}
-            <span className="mx-1 text-gray-300">/</span>
+            {selectedCollectionName}
+
+            <span className="mx-1 text-gray-300">
+              /
+            </span>
+
             <span className="font-medium text-gray-700">
               {selectedProductName}
             </span>
@@ -633,467 +1295,309 @@ export default function InventoryPage() {
         )}
       </div>
 
+      {/* ======================================================
+          EMPTY STATE
+      ====================================================== */}
+
       {!productSlug && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
-          Select a collection and product above to manage its variants and
-          images.
+          Select a collection and
+          product above to manage its
+          variants.
         </div>
       )}
 
       {productSlug && (
         <>
-          {/* ============ GROUPS ============ */}
+          {/* ==================================================
+              GROUP CARDS
+          ================================================== */}
 
-          {groups.length === 0 && !showNewGroup && (
-            <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              No color/style groups yet — add one below.
+          {groups.length === 0 && (
+            <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
+              No variants yet — create
+              your first group below.
             </div>
           )}
 
-          {groups.map((group) => {
-            const groupImages = imagesForGroup(group);
-            const isRenaming = renamingGroupKey === group.key;
-            const isEditingImages = activeImageGroupKey === group.key;
-            const isDeleting = deletingGroupKey === group.key;
-            const addRowTemplate: SizeRow = {
-              id: undefined,
-              variant3: group.rows[0]?.variant3 ?? "Size",
-              value3: "",
-              stock: 0,
-              priceVND: 0,
-              priceUSD: 0,
-              status: "Active",
-            };
-            const addRowEdit = getRowEdit(group, addRowTemplate);
-            const addRowKey = rowKey(group, undefined);
+          <div className="space-y-5">
+            {groups.map((group) => {
+              const groupImages =
+                imagesForGroup(
+                  group
+                );
 
-            return (
-              <section
-                key={group.key}
-                className="rounded-xl border border-gray-200 bg-white shadow-sm mb-8 overflow-hidden"
-              >
-                {/* ---- group header ---- */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3 sm:px-5 sm:py-4">
-                  {isRenaming ? (
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div>
-                        <label className={labelClass}>{group.variant1 || "Color"}</label>
-                        <input
-                          className={inputClass}
-                          placeholder={DEFAULT_VALUE1}
-                          value={renameValue1}
-                          onChange={(e) => setRenameValue1(e.target.value)}
-                        />
+              const isDeleting =
+                deletingGroupKey ===
+                group.key;
+
+              const totalStock =
+                group.rows.reduce(
+                  (sum, row) =>
+                    sum +
+                    Number(
+                      row.stock || 0
+                    ),
+                  0
+                );
+
+              return (
+                <section
+                  key={group.key}
+                  className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                >
+                  {/* GROUP HEADER */}
+
+                  <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          {group.value1 ||
+                            DEFAULT_VALUE1}
+
+                          {group.value2 && (
+                            <>
+                              <span className="mx-1 text-gray-300">
+                                /
+                              </span>
+
+                              {group.value2}
+                            </>
+                          )}
+                        </h2>
+
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                          {
+                            group.rows
+                              .length
+                          }{" "}
+                          size
+                          {group.rows
+                            .length ===
+                            1
+                            ? ""
+                            : "s"}
+                        </span>
                       </div>
-                      {group.variant2 && (
-                        <div>
-                          <label className={labelClass}>{group.variant2}</label>
-                          <input
-                            className={inputClass}
-                            value={renameValue2}
-                            onChange={(e) => setRenameValue2(e.target.value)}
-                          />
-                        </div>
-                      )}
+
+                      <p className="mt-1 text-xs text-gray-400">
+                        {totalStock}{" "}
+                        items in stock
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => saveRename(group)}
-                        disabled={renaming}
-                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                        onClick={() =>
+                          openEditModal(
+                            group
+                          )
+                        }
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
                       >
-                        {renaming ? "Saving…" : "Save"}
+                        Edit
                       </button>
+
                       <button
-                        onClick={() => setRenamingGroupKey(null)}
-                        disabled={renaming}
-                        className="text-sm text-gray-500 hover:text-gray-800 disabled:opacity-50"
+                        onClick={() =>
+                          deleteGroup(
+                            group
+                          )
+                        }
+                        disabled={
+                          isDeleting
+                        }
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
                       >
-                        Cancel
+                        {isDeleting
+                          ? "Deleting…"
+                          : "Delete"}
                       </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {group.value1}
-                        {group.value2 ? ` / ${group.value2}` : ""}
-                      </h2>
-                      <button
-                        onClick={() => startRename(group)}
-                        className="text-xs text-gray-400 hover:text-gray-700"
-                      >
-                        Rename
-                      </button>
-                      <button
-                        onClick={() => deleteGroup(group)}
-                        disabled={isDeleting}
-                        className="text-xs text-red-400 hover:text-red-700 disabled:opacity-50"
-                      >
-                        {isDeleting ? "Deleting…" : "Delete group"}
-                      </button>
-                    </div>
-                  )}
-
-                  <span className="text-xs text-gray-400">
-                    {group.rows.length} size{group.rows.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                {/* ---- images (managed once per group) ---- */}
-                <div className="border-b border-gray-100 px-4 py-4 sm:px-5 sm:py-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Images
-                    </h3>
-                    {!isEditingImages && (<button onClick={() => openImageEditor(group)} className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 transition" >
-                      Edit </button>)}
                   </div>
 
-                  {!isEditingImages ? (
-                    groupImages.length === 0 ? (
-                      <p className="text-sm text-gray-400">
-                        No images yet — shared across every size in this
-                        group.
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-3">
-                        {groupImages.map((img) => (
-                          <div
-                            key={img.id}
-                            className="h-16 w-16 overflow-hidden rounded-lg border border-gray-200 sm:h-20 sm:w-20"
-                          >
-                            <img
-                              src={img.url_thumb ?? img.url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <div className="flex flex-wrap items-center gap-4 mb-4">
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-                          Choose files
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                        </label>
+                  {/* GROUP CONTENT */}
 
-                        {dirty && (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                            Unsaved changes
-                          </span>
-                        )}
+                  <div className="p-4 sm:p-5">
+                    {/* IMAGES */}
+
+                    <div className="mb-5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Images
+                        </h3>
+
+                        <span className="text-xs text-gray-400">
+                          {
+                            groupImages.length
+                          }{" "}
+                          image
+                          {groupImages.length ===
+                            1
+                            ? ""
+                            : "s"}
+                        </span>
                       </div>
 
-                      {staged.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-400 mb-4">
-                          No images yet — choose files above.
+                      {groupImages.length ===
+                        0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-xs text-gray-400">
+                          No images
                         </div>
                       ) : (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {staged.map((img, index) => (
-                            <div
-                              key={img.kind === "existing" ? img.id : img.tempId}
-                              draggable
-                              onDragStart={() => setDraggedIndex(index)}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={() => handleDrop(index)}
-                              className="group relative h-20 w-20 cursor-grab overflow-hidden rounded-lg border border-gray-200 shadow-sm active:cursor-grabbing sm:h-24 sm:w-24"
-                            >
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {groupImages.map(
+                            (img) => (
                               <img
+                                key={
+                                  img.id
+                                }
                                 src={
-                                  img.kind === "existing"
-                                    ? img.url
-                                    : img.previewUrl
+                                  img.url_thumb ??
+                                  img.url
                                 }
                                 alt=""
-                                className={`w-full h-full object-cover ${img.kind === "new" ? "opacity-70" : ""
-                                  }`}
+                                className="h-16 w-16 flex-shrink-0 rounded-lg border border-gray-200 object-cover sm:h-20 sm:w-20"
                               />
-
-                              {img.kind === "new" && (
-                                <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                                  NEW
-                                </span>
-                              )}
-
-                              <button
-                                onClick={() => handleRemove(index)}
-                                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
+                            )
+                          )}
                         </div>
                       )}
+                    </div>
 
-                      {processing && (
-                        <div className="mb-4">
-                          <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Processing images…</span>
-                            <span>
-                              {processProgress.done}/{processProgress.total}
-                            </span>
-                          </div>
-                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    {/* SIZES */}
+
+                    <div>
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Sizes
+                      </h3>
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.rows.map(
+                          (row) => (
                             <div
-                              className="h-full bg-blue-500 transition-all"
-                              style={{
-                                width: `${(processProgress.done /
-                                  Math.max(processProgress.total, 1)) *
-                                  100
-                                  }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
+                              key={
+                                row.id
+                              }
+                              className="rounded-lg border border-gray-100 bg-gray-50 p-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-900">
+                                  {
+                                    row.value3
+                                  }
+                                </span>
 
-                      <div className="flex justify-end gap-4">
-                        <button
-                          onClick={closeImageEditor}
-                          className="text-sm text-gray-500 hover:text-gray-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => syncImages(group)}
-                          disabled={syncing || !dirty}
-                          className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
-                        >
-                          {processing
-                            ? "Processing images…"
-                            : syncing
-                              ? "Saving…"
-                              : "Save images"}
-                        </button>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${row.status ===
+                                      "Active"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-gray-200 text-gray-500"
+                                    }`}
+                                >
+                                  {
+                                    row.status
+                                  }
+                                </span>
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                <div>
+                                  <p className="text-gray-400">
+                                    Stock
+                                  </p>
+
+                                  <p className="font-medium text-gray-700">
+                                    {
+                                      row.stock
+                                    }
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="text-gray-400">
+                                    VND
+                                  </p>
+
+                                  <p className="font-medium text-gray-700">
+                                    {Number(
+                                      row.priceVND
+                                    ).toLocaleString()}
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="text-gray-400">
+                                    USD
+                                  </p>
+
+                                  <p className="font-medium text-gray-700">
+                                    $
+                                    {Number(
+                                      row.priceUSD
+                                    ).toFixed(
+                                      2
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-
-                {/* ---- sizes (no image controls in here at all) ---- */}
-                <div className="px-4 py-4 sm:px-5 sm:py-5">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    Sizes
-                  </h3>
-
-                  <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-                  <table className="min-w-[720px] w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                        <th className="p-2">{group.rows[0]?.variant3 ?? "Size"}</th>
-                        <th className="p-2">Stock</th>
-                        <th className="p-2">Price VND</th>
-                        <th className="p-2">Price USD</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.rows.map((row) => {
-                        const key = rowKey(group, row.id);
-                        const edited = getRowEdit(group, row);
-
-                        return (
-                          <tr key={key} className="border-t border-gray-100">
-                            <td className="p-2">
-                              <input
-                                className={cellInputClass}
-                                value={edited.value3}
-                                onChange={(e) =>
-                                  updateRowEdit(group, row, {
-                                    value3: e.target.value,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="p-2">
-                              <input
-                                type="number"
-                                className={cellInputClass}
-                                value={edited.stock}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  updateRowEdit(group, row, {
-                                    stock: Number(e.target.value),
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="p-2">
-                              <input
-                                type="number"
-                                className={cellInputClass}
-                                value={edited.priceVND}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  updateRowEdit(group, row, {
-                                    priceVND: Number(e.target.value),
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="p-2">
-                              <input
-                                type="number"
-                                className={cellInputClass}
-                                value={edited.priceUSD}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  updateRowEdit(group, row, {
-                                    priceUSD: Number(e.target.value),
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="p-2">
-                              <select
-                                className={selectClass}
-                                value={edited.status}
-                                onChange={(e) =>
-                                  updateRowEdit(group, row, {
-                                    status: e.target.value,
-                                  })
-                                }
-                              >
-                                <option>Active</option>
-                                <option>Draft</option>
-                              </select>
-                            </td>
-                            <td className="p-2">
-                              <div className="flex justify-end gap-3">
-                                <button
-                                  onClick={() => saveRow(group, row)}
-                                  disabled={savingRowKey === key}
-                                  className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:text-blue-800 disabled:opacity-50 transition"
-                                >
-                                  {savingRowKey === key ? "Saving…" : "Save"}
-                                </button>
-                                <button
-                                  onClick={() => deleteRow(row.id!)}
-                                  className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-100 hover:text-red-700 transition"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {/* ---- add-size row ---- */}
-                      <tr className="border-t border-gray-100 bg-gray-50">
-                        <td className="p-2">
-                          <input
-                            className={cellInputClass}
-                            placeholder="e.g. M"
-                            value={addRowEdit.value3}
-                            onChange={(e) =>
-                              updateRowEdit(group, addRowTemplate, {
-                                value3: e.target.value,
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            className={cellInputClass}
-                            value={addRowEdit.stock}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) =>
-                              updateRowEdit(group, addRowTemplate, {
-                                stock: Number(e.target.value),
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            className={cellInputClass}
-                            value={addRowEdit.priceVND}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) =>
-                              updateRowEdit(group, addRowTemplate, {
-                                priceVND: Number(e.target.value),
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            className={cellInputClass}
-                            value={addRowEdit.priceUSD}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) =>
-                              updateRowEdit(group, addRowTemplate, {
-                                priceUSD: Number(e.target.value),
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="p-2">
-                          <select
-                            className={selectClass}
-                            value={addRowEdit.status}
-                            onChange={(e) =>
-                              updateRowEdit(group, addRowTemplate, {
-                                status: e.target.value,
-                              })
-                            }
-                          >
-                            <option>Active</option>
-                            <option>Draft</option>
-                          </select>
-                        </td>
-                        <td className="p-2">
-                          <button
-                            onClick={() => saveRow(group, addRowTemplate)}
-                            disabled={
-                              savingRowKey === addRowKey || !addRowEdit.value3.trim()
-                            }
-                            className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50"
-                          >
-                            {savingRowKey === addRowKey ? "Adding…" : "+ Add size"}
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
                   </div>
-                </div>
-              </section>
-            );
-          })}
+                </section>
+              );
+            })}
+          </div>
 
-          {/* ============ NEW GROUP ============ */}
+          {/* ==================================================
+              NEW GROUP BUTTON
+          ================================================== */}
 
           {!showNewGroup ? (
             <button
-              onClick={() => setShowNewGroup(true)}
-              className="mb-12 rounded-lg border border-dashed border-gray-300 px-5 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900"
+              onClick={() =>
+                setShowNewGroup(
+                  true
+                )
+              }
+              className="mt-6 mb-12 w-full rounded-xl border border-dashed border-gray-300 px-5 py-4 text-sm font-medium text-gray-600 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900"
             >
               + New color/style group
             </button>
           ) : (
-            <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-12">
-              <div className="flex justify-between items-center mb-5">
+            /* ==================================================
+               NEW GROUP FORM
+            ================================================== */
+
+            <section className="mt-6 mb-12 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">
                   New color/style group
                 </h2>
+
                 <button
                   onClick={() => {
-                    setShowNewGroup(false);
-                    setNewGroup(emptyNewGroup);
+                    setShowNewGroup(
+                      false
+                    );
+
+                    setNewGroup(
+                      emptyNewGroup
+                    );
+
+                    setNewSizes([
+                      {
+                        value3: "",
+                        stock: 0,
+                        priceVND: 0,
+                        priceUSD: 0,
+                        status:
+                          "Active",
+                      },
+                    ]);
                   }}
                   className="text-sm text-gray-500 hover:text-gray-800"
                 >
@@ -1101,119 +1605,337 @@ export default function InventoryPage() {
                 </button>
               </div>
 
-              <p className="text-xs text-gray-400 mb-4">
-                Leave Color blank if this product has no color/style split —
-                it'll be saved as "{DEFAULT_VALUE1}" and the color picker
-                won't be shown to customers. This creates the group's first
-                size; add more sizes from the group's table once it's
-                created.
+              <p className="mb-5 text-xs leading-relaxed text-gray-400">
+                Create a color/style group
+                and add all of its sizes at
+                once.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className={labelClass}>Color</label>
-                  <input
-                    className={inputClass}
-                    placeholder={DEFAULT_VALUE1}
-                    value={newGroup.value1}
-                    onChange={(e) =>
-                      setNewGroup({ ...newGroup, value1: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Material (optional)</label>
-                  <input
-                    className={inputClass}
-                    placeholder="Silk"
-                    value={newGroup.value2}
-                    onChange={(e) =>
-                      setNewGroup({
-                        ...newGroup,
-                        variant2: e.target.value ? "Material" : "",
-                        value2: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
+              {/* GROUP INFO */}
 
-              <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Size</label>
-                  <input
-                    className={inputClass}
-                    placeholder="S"
-                    value={newGroup.value3}
-                    onChange={(e) =>
-                      setNewGroup({ ...newGroup, value3: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Stock</label>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    value={newGroup.stock}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) =>
-                      setNewGroup({
-                        ...newGroup,
-                        stock: Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Price (VND)</label>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    value={newGroup.priceVND}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) =>
-                      setNewGroup({
-                        ...newGroup,
-                        priceVND: Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Price (USD)</label>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    value={newGroup.priceUSD}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) =>
-                      setNewGroup({
-                        ...newGroup,
-                        priceUSD: Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Status</label>
-                  <select
-                    className={selectClass + " w-full"}
-                    value={newGroup.status}
-                    onChange={(e) =>
-                      setNewGroup({ ...newGroup, status: e.target.value })
+                  <label
+                    className={
+                      labelClass
                     }
                   >
-                    <option>Active</option>
-                    <option>Draft</option>
-                  </select>
+                    Color
+                  </label>
+
+                  <input
+                    className={
+                      inputClass
+                    }
+                    placeholder={
+                      DEFAULT_VALUE1
+                    }
+                    value={
+                      newGroup.value1
+                    }
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        value1:
+                          e.target
+                            .value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className={
+                      labelClass
+                    }
+                  >
+                    Material
+                    <span className="font-normal text-gray-400">
+                      {" "}
+                      (optional)
+                    </span>
+                  </label>
+
+                  <input
+                    className={
+                      inputClass
+                    }
+                    placeholder="Silk"
+                    value={
+                      newGroup.value2
+                    }
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        variant2:
+                          e.target
+                            .value
+                            ? "Material"
+                            : "",
+                        value2:
+                          e.target
+                            .value,
+                      })
+                    }
+                  />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              {/* SIZES */}
+
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Sizes
+                </h3>
+
                 <button
-                  onClick={createGroup}
-                  className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+                  type="button"
+                  onClick={
+                    addNewSize
+                  }
+                  className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                >
+                  + Add size
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {newSizes.map(
+                  (size, index) => (
+                    <div
+                      key={index}
+                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">
+                          Size{" "}
+                          {index + 1}
+                        </span>
+
+                        {newSizes.length >
+                          1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeNewSize(
+                                  index
+                                )
+                              }
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          )}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div>
+                          <label
+                            className={
+                              labelClass
+                            }
+                          >
+                            Size
+                          </label>
+
+                          <input
+                            className={
+                              inputClass
+                            }
+                            placeholder="S"
+                            value={
+                              size.value3
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              updateNewSize(
+                                index,
+                                {
+                                  value3:
+                                    e
+                                      .target
+                                      .value,
+                                }
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            className={
+                              labelClass
+                            }
+                          >
+                            Stock
+                          </label>
+
+                          <input
+                            type="number"
+                            className={
+                              inputClass
+                            }
+                            value={
+                              size.stock
+                            }
+                            onFocus={(
+                              e
+                            ) =>
+                              e.currentTarget.select()
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              updateNewSize(
+                                index,
+                                {
+                                  stock: Number(
+                                    e
+                                      .target
+                                      .value
+                                  ),
+                                }
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            className={
+                              labelClass
+                            }
+                          >
+                            Price VND
+                          </label>
+
+                          <input
+                            type="number"
+                            className={
+                              inputClass
+                            }
+                            value={
+                              size.priceVND
+                            }
+                            onFocus={(
+                              e
+                            ) =>
+                              e.currentTarget.select()
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              updateNewSize(
+                                index,
+                                {
+                                  priceVND:
+                                    Number(
+                                      e
+                                        .target
+                                        .value
+                                    ),
+                                }
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            className={
+                              labelClass
+                            }
+                          >
+                            Price USD
+                          </label>
+
+                          <input
+                            type="number"
+                            className={
+                              inputClass
+                            }
+                            value={
+                              size.priceUSD
+                            }
+                            onFocus={(
+                              e
+                            ) =>
+                              e.currentTarget.select()
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              updateNewSize(
+                                index,
+                                {
+                                  priceUSD:
+                                    Number(
+                                      e
+                                        .target
+                                        .value
+                                    ),
+                                }
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            className={
+                              labelClass
+                            }
+                          >
+                            Status
+                          </label>
+
+                          <select
+                            className={
+                              selectClass +
+                              " w-full"
+                            }
+                            value={
+                              size.status
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              updateNewSize(
+                                index,
+                                {
+                                  status:
+                                    e
+                                      .target
+                                      .value,
+                                }
+                              )
+                            }
+                          >
+                            <option>
+                              Active
+                            </option>
+
+                            <option>
+                              Draft
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* CREATE */}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={
+                    createGroup
+                  }
+                  className="w-full rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
                 >
                   Create group
                 </button>
@@ -1221,6 +1943,514 @@ export default function InventoryPage() {
             </section>
           )}
         </>
+      )}
+
+      {/* ======================================================
+          EDIT GROUP MODAL
+      ====================================================== */}
+
+      {editingGroup && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-4xl sm:rounded-2xl">
+            {/* MODAL HEADER */}
+
+            <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Edit variant
+                </h2>
+
+                <p className="mt-0.5 text-xs text-gray-400">
+                  {editingGroup.value1}
+
+                  {editingGroup.value2 && (
+                    <>
+                      {" "}
+                      /{" "}
+                      {
+                        editingGroup.value2
+                      }
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {/* CLOSE X */}
+
+              <button
+                onClick={
+                  closeEditModal
+                }
+                aria-label="Close"
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* MODAL CONTENT */}
+
+            <div className="overflow-y-auto px-4 py-5 sm:px-6">
+              {/* GROUP NAME */}
+
+              <div className="mb-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Variant
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={labelClass}>
+                      Color
+                    </label>
+
+                    <input
+                      className={inputClass}
+                      value={renameValue1}
+                      onChange={(e) => {
+                        setRenameValue1(e.target.value);
+                        setDirty(true);
+                      }}
+                      placeholder="Red"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      Material
+                    </label>
+
+                    <input
+                      className={inputClass}
+                      value={renameValue2}
+                      onChange={(e) => {
+                        setRenameValue2(e.target.value);
+                        setDirty(true);
+                      }}
+                      placeholder="Silk"
+                    />
+                  </div>
+                </div>
+
+                {(renameValue1 !==
+                  editingGroup.value1 ||
+                  renameValue2 !==
+                  editingGroup.value2) && (
+                    <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2">
+                      <span className="text-xs text-amber-700">
+                        Variant name changed — click
+                        Save below to apply.
+                      </span>
+                    </div>
+                  )}
+              </div>
+
+              {/* IMAGES */}
+
+              <div className="mb-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Images
+                  </h3>
+
+                  <label className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
+                    + Add images
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={
+                        handleFileSelect
+                      }
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {staged.length ===
+                  0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
+                    No images yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {staged.map(
+                      (
+                        img,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            img.kind ===
+                              "existing"
+                              ? img.id
+                              : img.tempId
+                          }
+                          draggable
+                          onDragStart={() =>
+                            setDraggedIndex(
+                              index
+                            )
+                          }
+                          onDragOver={(e) =>
+                            e.preventDefault()
+                          }
+                          onDrop={() =>
+                            handleDrop(
+                              index
+                            )
+                          }
+                          className="group relative aspect-square cursor-grab overflow-hidden rounded-lg border border-gray-200 bg-gray-100 active:cursor-grabbing"
+                        >
+                          <img
+                            src={
+                              img.kind ===
+                                "existing"
+                                ? img.url
+                                : img.previewUrl
+                            }
+                            alt=""
+                            className={`h-full w-full object-cover ${img.kind ===
+                                "new"
+                                ? "opacity-70"
+                                : ""
+                              }`}
+                          />
+
+                          {img.kind ===
+                            "new" && (
+                              <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                                NEW
+                              </span>
+                            )}
+
+                          <button
+                            onClick={() =>
+                              handleRemoveImage(
+                                index
+                              )
+                            }
+                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {dirty && (
+                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2">
+                    <span className="text-xs text-amber-700">
+                      Unsaved changes
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* SIZES */}
+
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Sizes
+                  </h3>
+
+                  <button
+                    onClick={
+                      addSizeToEditingGroup
+                    }
+                    className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    + Add size
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {editingRows.map(
+                    (row, index) => (
+                      <div
+                        key={
+                          row.id ??
+                          `new-${index}`
+                        }
+                        className="rounded-xl border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">
+                            {row.id
+                              ? `Size ${index +
+                              1
+                              }`
+                              : "New size"}
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              deleteEditingSize(
+                                row,
+                                index
+                              )
+                            }
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          <div>
+                            <label
+                              className={
+                                labelClass
+                              }
+                            >
+                              {
+                                row.variant3
+                              }
+                            </label>
+
+                            <input
+                              className={
+                                inputClass
+                              }
+                              value={
+                                row.value3
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateEditingRow(
+                                  index,
+                                  {
+                                    value3:
+                                      e
+                                        .target
+                                        .value,
+                                  }
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <label
+                              className={
+                                labelClass
+                              }
+                            >
+                              Stock
+                            </label>
+
+                            <input
+                              type="number"
+                              className={
+                                inputClass
+                              }
+                              value={
+                                row.stock
+                              }
+                              onFocus={(
+                                e
+                              ) =>
+                                e.currentTarget.select()
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateEditingRow(
+                                  index,
+                                  {
+                                    stock: Number(
+                                      e
+                                        .target
+                                        .value
+                                    ),
+                                  }
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <label
+                              className={
+                                labelClass
+                              }
+                            >
+                              Price VND
+                            </label>
+
+                            <input
+                              type="number"
+                              className={
+                                inputClass
+                              }
+                              value={
+                                row.priceVND
+                              }
+                              onFocus={(
+                                e
+                              ) =>
+                                e.currentTarget.select()
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateEditingRow(
+                                  index,
+                                  {
+                                    priceVND:
+                                      Number(
+                                        e
+                                          .target
+                                          .value
+                                      ),
+                                  }
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <label
+                              className={
+                                labelClass
+                              }
+                            >
+                              Price USD
+                            </label>
+
+                            <input
+                              type="number"
+                              className={
+                                inputClass
+                              }
+                              value={
+                                row.priceUSD
+                              }
+                              onFocus={(
+                                e
+                              ) =>
+                                e.currentTarget.select()
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateEditingRow(
+                                  index,
+                                  {
+                                    priceUSD:
+                                      Number(
+                                        e
+                                          .target
+                                          .value
+                                      ),
+                                  }
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <div className="w-full sm:w-48">
+                            <label
+                              className={
+                                labelClass
+                              }
+                            >
+                              Status
+                            </label>
+
+                            <select
+                              className={
+                                selectClass +
+                                " w-full"
+                              }
+                              value={
+                                row.status
+                              }
+                              onChange={(
+                                e
+                              ) =>
+                                updateEditingRow(
+                                  index,
+                                  {
+                                    status:
+                                      e
+                                        .target
+                                        .value,
+                                  }
+                                )
+                              }
+                            >
+                              <option>
+                                Active
+                              </option>
+
+                              <option>
+                                Draft
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ==================================================
+                MODAL FOOTER
+            ================================================== */}
+
+            <div className="relative flex items-center justify-center border-t border-gray-200 bg-gray-50 px-4 py-4 sm:px-6">
+              {/* DELETE ENTIRE GROUP + SAVE IN CENTER */}
+
+              <div className="flex items-center gap-2">
+                
+
+                <button
+                  onClick={
+                    saveAllChanges
+                  }
+                  disabled={
+                    !dirty ||
+                    syncing ||
+                    processing
+                  }
+                  className="rounded-lg bg-gray-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {processing
+                    ? `Processing ${processProgress.done}/${processProgress.total}…`
+                    : syncing
+                      ? "Saving…"
+                      : "Save"}
+                </button>
+                <button
+                  onClick={() =>
+                    deleteGroup(
+                      editingGroup
+                    )
+                  }
+                  disabled={
+                    syncing ||
+                    processing
+                  }
+                  className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                >
+                  Delete entire group
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
