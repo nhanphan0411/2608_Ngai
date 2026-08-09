@@ -231,14 +231,6 @@ export default function ProductsPage() {
               <h2 className="text-lg font-semibold text-gray-900">
                 {form.id ? "Edit Product" : "New Product"}
               </h2>
-              {form.id && (
-                <button
-                  onClick={newProduct}
-                  className="text-sm text-gray-500 hover:text-gray-800"
-                >
-                  Cancel edit
-                </button>
-              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -353,7 +345,16 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end mt-6 gap-6">
+              {form.id && (
+                <button
+                  onClick={newProduct}
+                  className="text-sm text-gray-500 hover:text-gray-800"
+                >
+                  Cancel edit
+                </button>
+              )}
+
               <button
                 onClick={saveProduct}
                 className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"

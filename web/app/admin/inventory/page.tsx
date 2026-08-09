@@ -1,11 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { processImage } from "@/lib/imageProcessing";
 
 type StagedImage =
   | { kind: "existing"; id: number; url: string }
   | { kind: "new"; tempId: string; file: File; previewUrl: string };
+
+type SizeRow = {
+  id?: number;
+  variant3: string;
+  value3: string;
+  stock: number;
+  priceVND: number;
+  priceUSD: number;
+  status: string;
+};
+
+type Group = {
+  key: string;
+  variant1: string;
+  value1: string;
+  variant2: string;
+  value2: string;
+  rows: SizeRow[];
+};
+
+function groupKey(value1: string, value2: string) {
+  return `${value1}||${value2}`;
+}
 
 export default function InventoryPage() {
   // ---- shared pickers ----
@@ -14,31 +37,28 @@ export default function InventoryPage() {
   const [collectionSlug, setCollectionSlug] = useState("");
   const [productSlug, setProductSlug] = useState("");
 
-  // ---- inventory (variants) ----
+  // ---- raw data for the current product ----
   const [variants, setVariants] = useState<any[]>([]);
+  const [allImages, setAllImages] = useState<any[]>([]);
 
-  const emptyForm = {
-    id: undefined as number | undefined,
-    collection_slug: "",
-    product_slug: "",
-    variant1: "",
+  // ---- new color/style group form (creates the group's first size) ----
+  const emptyNewGroup = {
+    variant1: "Color",
     value1: "",
     variant2: "",
     value2: "",
-    variant3: "",
+    variant3: "Size",
     value3: "",
     stock: 0,
     priceVND: 0,
     priceUSD: 0,
     status: "Active",
   };
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [newGroup, setNewGroup] = useState(emptyNewGroup);
 
-  const [form, setForm] = useState(emptyForm);
-
-  // ---- image manager (driven by the form's own value1/value2, not a separate picker) ----
-  const [imgKeyValue1, setImgKeyValue1] = useState("");
-  const [imgKeyValue2, setImgKeyValue2] = useState("");
-
+  // ---- image editor — one group's images open for editing at a time ----
+  const [activeImageGroupKey, setActiveImageGroupKey] = useState<string | null>(null);
   const [staged, setStaged] = useState<StagedImage[]>([]);
   const [originalIds, setOriginalIds] = useState<number[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -46,6 +66,15 @@ export default function InventoryPage() {
   const [processing, setProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState({ done: 0, total: 0 });
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // ---- group header rename (value1/value2) — one group at a time ----
+  const [renamingGroupKey, setRenamingGroupKey] = useState<string | null>(null);
+  const [renameValue1, setRenameValue1] = useState("");
+  const [renameValue2, setRenameValue2] = useState("");
+
+  // ---- inline size-row edits, keyed by variant id ("new:<groupKey>" for the add-row) ----
+  const [rowEdits, setRowEdits] = useState<Record<string, SizeRow>>({});
+  const [savingRowKey, setSavingRowKey] = useState<string | null>(null);
 
   // ---------------- shared pickers ----------------
 
@@ -58,13 +87,7 @@ export default function InventoryPage() {
   useEffect(() => {
     setProducts([]);
     setProductSlug("");
-    setVariants([]);
-    setForm(emptyForm);
-    setImgKeyValue1("");
-    setImgKeyValue2("");
-    setStaged([]);
-    setOriginalIds([]);
-    setDirty(false);
+    resetProductState();
 
     if (!collectionSlug) return;
 
@@ -74,134 +97,102 @@ export default function InventoryPage() {
   }, [collectionSlug]);
 
   useEffect(() => {
-    setVariants([]);
-    setForm(emptyForm);
-    setImgKeyValue1("");
-    setImgKeyValue2("");
-    setStaged([]);
-    setOriginalIds([]);
-    setDirty(false);
+    resetProductState();
 
     if (!productSlug) return;
 
     loadVariants();
+    loadAllImages();
   }, [productSlug]);
 
-  // ---------------- inventory logic ----------------
+  function resetProductState() {
+    setVariants([]);
+    setAllImages([]);
+    setShowNewGroup(false);
+    setNewGroup(emptyNewGroup);
+    closeImageEditor();
+    setRenamingGroupKey(null);
+    setRowEdits({});
+  }
+
+  // ---------------- data loading ----------------
 
   async function loadVariants() {
     const res = await fetch(`/api/admin/inventory?product=${productSlug}`);
-    const data = await (res.json()) as any;
-    setVariants(data);
+    setVariants((await res.json()) as any[]);
   }
 
-  async function editVariant(v: any) {
-    setForm(v);
+  // No value1 param → the existing GET route returns every image for the
+  // product in one call (see app/api/admin/images/route.ts). We group them
+  // client-side instead of re-fetching per group.
+  async function loadAllImages() {
+    const res = await fetch(`/api/admin/images?product_slug=${productSlug}`);
+    setAllImages((await res.json()) as any[]);
+  }
 
-    const value1 = v.value1 ?? "";
-    const value2 = v.variant2 ? (v.value2 ?? "") : "";
+  // ---------------- grouping: variants → color/style groups ----------------
 
-    setImgKeyValue1(value1);
-    setImgKeyValue2(value2);
+  const groups: Group[] = useMemo(() => {
+    const map = new Map<string, Group>();
+
+    for (const v of variants) {
+      const key = groupKey(v.value1 ?? "", v.value2 ?? "");
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          variant1: v.variant1 ?? "Color",
+          value1: v.value1 ?? "",
+          variant2: v.variant2 ?? "",
+          value2: v.value2 ?? "",
+          rows: [],
+        });
+      }
+
+      map.get(key)!.rows.push({
+        id: v.id,
+        variant3: v.variant3 ?? "Size",
+        value3: v.value3 ?? "",
+        stock: v.stock ?? 0,
+        priceVND: v.priceVND ?? 0,
+        priceUSD: v.priceUSD ?? 0,
+        status: v.status ?? "Active",
+      });
+    }
+
+    return [...map.values()];
+  }, [variants]);
+
+  function imagesForGroup(group: Group) {
+    return allImages.filter(
+      (img) => img.value1 === group.value1 && (img.value2 ?? "") === group.value2
+    );
+  }
+
+  // ---------------- image editor (same sync mechanics as before, scoped to one group) ----------------
+
+  function closeImageEditor() {
+    setActiveImageGroupKey(null);
+    setStaged([]);
+    setOriginalIds([]);
     setDirty(false);
+  }
 
-    const params = new URLSearchParams({ product_slug: productSlug, value1 });
-    if (value2) params.set("value2", value2);
+  function openImageEditor(group: Group) {
+    setActiveImageGroupKey(group.key);
 
-    const res = await fetch(`/api/admin/images?${params.toString()}`);
-    const imgs = (await res.json()) as any[];
+    const imgs = imagesForGroup(group);
 
     setStaged(
       imgs.map((img) => ({
         kind: "existing" as const,
         id: img.id,
-        url: img.url_thumb,
+        url: img.url_thumb ?? img.url,
       }))
     );
     setOriginalIds(imgs.map((img) => img.id));
+    setDirty(false);
   }
-
-  function newVariant() {
-    setForm({
-      ...emptyForm,
-      collection_slug: collectionSlug,
-      product_slug: productSlug,
-    });
-    setImgKeyValue1("");
-    setImgKeyValue2("");
-  }
-
-  async function saveVariant() {
-    const method = form.id ? "PUT" : "POST";
-
-    const newValue1 = form.value1?.trim() ?? "";
-    const newValue2 = form.variant2 ? (form.value2?.trim() ?? "") : "";
-
-    await fetch("/api/admin/inventory", {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        collection_slug: collectionSlug,
-        product_slug: productSlug,
-      }),
-    });
-
-    // If this was an existing variant and its value1/value2 changed,
-    // move its images over instead of leaving them orphaned.
-    if (
-      form.id &&
-      imgKeyValue1 &&
-      (imgKeyValue1 !== newValue1 || imgKeyValue2 !== newValue2)
-    ) {
-      await fetch("/api/admin/images/repoint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_slug: productSlug,
-          old_value1: imgKeyValue1,
-          old_value2: imgKeyValue2 || null,
-          new_value1: newValue1,
-          new_value2: newValue2 || null,
-        }),
-      });
-
-      setImgKeyValue1(newValue1);
-      setImgKeyValue2(newValue2);
-    }
-
-    if (newValue1 && dirty) {
-      await syncImages(newValue1, newValue2);
-    }
-
-    await loadVariants();
-    newVariant();
-  }
-
-  async function deleteVariantRow(id: number) {
-    if (!confirm("Delete this variant?")) return;
-
-    await fetch("/api/admin/inventory", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-
-    await loadVariants();
-
-    if (form.id === id) {
-      newVariant();
-    }
-  }
-
-  // ---------------- image manager logic ----------------
-
-  const needsValue2 = !!form.variant2?.trim();
-  const liveValue1 = form.value1?.trim() ?? "";
-  const liveValue2 = needsValue2 ? (form.value2?.trim() ?? "") : "";
-  const canManageImages = form.id
-    ? true // editing an existing variant — images stay visible no matter what's mid-typing
-    : !!liveValue1 && (!needsValue2 || !!liveValue2);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -238,7 +229,7 @@ export default function InventoryPage() {
     setDraggedIndex(null);
   }
 
-  async function syncImages(value1: string, value2: string) {
+  async function syncImages(group: Group) {
     setSyncing(true);
 
     const stagedExistingIds = staged
@@ -267,12 +258,11 @@ export default function InventoryPage() {
 
     const formData = new FormData();
     formData.append("product_slug", productSlug);
-    formData.append("value1", value1);
-    if (value2) formData.append("value2", value2);
+    formData.append("value1", group.value1);
+    if (group.value2) formData.append("value2", group.value2);
     formData.append("deleteIds", JSON.stringify(deleteIds));
     formData.append("order", JSON.stringify(order));
 
-    // Process each new file into 3 WebP sizes, right here, before upload.
     if (newFiles.length > 0) {
       setProcessing(true);
       setProcessProgress({ done: 0, total: newFiles.length });
@@ -311,21 +301,170 @@ export default function InventoryPage() {
       alert(`Some changes couldn't be completed:\n${data.failures.join("\n")}`);
     }
 
-    const images = data.images ?? [];
-
-    setStaged(
-      images.map((img: any) => ({
-        kind: "existing",
-        id: img.id,
-        url: img.url_thumb, // grid preview uses the thumb size
-      }))
-    );
-
-    setOriginalIds(images.map((img: any) => img.id));
-
+    await loadAllImages();
     setDirty(false);
     setSyncing(false);
+    closeImageEditor();
   }
+
+  // ---------------- group rename (value1/value2 for every size in the group) ----------------
+
+  function startRename(group: Group) {
+    setRenamingGroupKey(group.key);
+    setRenameValue1(group.value1);
+    setRenameValue2(group.value2);
+  }
+
+  async function saveRename(group: Group) {
+    const newValue1 = renameValue1.trim() || "original";
+    const newValue2 = renameValue2.trim();
+
+    if (newValue1 !== group.value1 || newValue2 !== group.value2) {
+      // Every size in the group shares value1/value2, so renaming the group
+      // means updating every row — then repointing its images so they
+      // follow instead of getting orphaned under the old key.
+      for (const row of group.rows) {
+        await fetch("/api/admin/inventory", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: row.id,
+            collection_slug: collectionSlug,
+            product_slug: productSlug,
+            variant1: group.variant1,
+            value1: newValue1,
+            variant2: group.variant2,
+            value2: newValue2,
+            variant3: row.variant3,
+            value3: row.value3,
+            stock: row.stock,
+            priceVND: row.priceVND,
+            priceUSD: row.priceUSD,
+            status: row.status,
+          }),
+        });
+      }
+
+      await fetch("/api/admin/images/repoint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_slug: productSlug,
+          old_value1: group.value1,
+          old_value2: group.value2 || null,
+          new_value1: newValue1,
+          new_value2: newValue2 || null,
+        }),
+      });
+
+      await loadVariants();
+      await loadAllImages();
+    }
+
+    setRenamingGroupKey(null);
+  }
+
+  // ---------------- size rows (no image controls anywhere in here) ----------------
+
+  function rowKey(group: Group, id: number | undefined) {
+    return id !== undefined ? `row:${id}` : `new:${group.key}`;
+  }
+
+  function getRowEdit(group: Group, row: SizeRow): SizeRow {
+    return rowEdits[rowKey(group, row.id)] ?? row;
+  }
+
+  function updateRowEdit(group: Group, row: SizeRow, patch: Partial<SizeRow>) {
+    const key = rowKey(group, row.id);
+    setRowEdits((prev) => ({
+      ...prev,
+      [key]: { ...getRowEdit(group, row), ...patch },
+    }));
+  }
+
+  async function saveRow(group: Group, row: SizeRow) {
+    const edited = getRowEdit(group, row);
+    const key = rowKey(group, row.id);
+    setSavingRowKey(key);
+
+    const method = row.id ? "PUT" : "POST";
+
+    await fetch("/api/admin/inventory", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: row.id,
+        collection_slug: collectionSlug,
+        product_slug: productSlug,
+        variant1: group.variant1,
+        value1: group.value1,
+        variant2: group.variant2,
+        value2: group.value2,
+        variant3: edited.variant3 || "Size",
+        value3: edited.value3,
+        stock: edited.stock,
+        priceVND: edited.priceVND,
+        priceUSD: edited.priceUSD,
+        status: edited.status,
+      }),
+    });
+
+    setRowEdits((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    setSavingRowKey(null);
+    await loadVariants();
+  }
+
+  async function deleteRow(id: number) {
+    if (!confirm("Delete this size?")) return;
+
+    await fetch("/api/admin/inventory", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+    await loadVariants();
+    await loadAllImages();
+  }
+
+  // ---------------- new group ----------------
+
+  async function createGroup() {
+    if (!newGroup.value1.trim()) {
+      alert("Enter a value for Color (e.g. Red)");
+      return;
+    }
+
+    await fetch("/api/admin/inventory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection_slug: collectionSlug,
+        product_slug: productSlug,
+        variant1: newGroup.variant1 || "Color",
+        value1: newGroup.value1,
+        variant2: newGroup.variant2 || null,
+        value2: newGroup.variant2 ? newGroup.value2 : null,
+        variant3: newGroup.variant3 || "Size",
+        value3: newGroup.value3,
+        stock: newGroup.stock,
+        priceVND: newGroup.priceVND,
+        priceUSD: newGroup.priceUSD,
+        status: newGroup.status,
+      }),
+    });
+
+    setNewGroup(emptyNewGroup);
+    setShowNewGroup(false);
+    await loadVariants();
+  }
+
+  // ---------------- shared styles ----------------
 
   const selectClass =
     "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
@@ -334,6 +473,9 @@ export default function InventoryPage() {
     "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const labelClass = "block text-xs font-medium text-gray-500 mb-1";
+
+  const cellInputClass =
+    "w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500";
 
   const selectedProductName = products.find(
     (p) => p.product_slug === productSlug
@@ -346,12 +488,12 @@ export default function InventoryPage() {
   // ---------------- render ----------------
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full max-w-5xl">
       <h1 className="text-3xl font-bold mb-6 text-gray-900">Inventory</h1>
 
       {/* Picker bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 mb-8 shadow-sm">
-        <div className="flex flex-col">
+      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Collection</label>
           <select
             className={selectClass}
@@ -367,7 +509,7 @@ export default function InventoryPage() {
           </select>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Product</label>
           <select
             className={selectClass}
@@ -385,9 +527,9 @@ export default function InventoryPage() {
         </div>
 
         {productSlug && (
-          <div className="ml-auto text-sm text-gray-400">
+          <div className="w-full text-xs text-gray-400 sm:ml-auto sm:w-auto sm:text-sm">
             {selectedCollectionName}{" "}
-            <span className="mx-1 text-gray-300">/</span>{" "}
+            <span className="mx-1 text-gray-300">/</span>
             <span className="font-medium text-gray-700">
               {selectedProductName}
             </span>
@@ -404,368 +546,572 @@ export default function InventoryPage() {
 
       {productSlug && (
         <>
-          {/* ============ VARIANTS ============ */}
+          {/* ============ GROUPS ============ */}
 
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm mb-8 overflow-hidden">
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Variants
-              </h2>
+          {groups.length === 0 && !showNewGroup && (
+            <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              No color/style groups yet — add one below.
             </div>
+          )}
 
-            {variants.length === 0 ? (
-              <div className="p-8 text-center text-sm text-gray-400">
-                No variants yet — add one below.
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                    <th className="p-3">Variant 1</th>
-                    <th className="p-3">Variant 2</th>
-                    <th className="p-3">Variant 3</th>
-                    <th className="p-3">Stock</th>
-                    <th className="p-3">Price VND</th>
-                    <th className="p-3">Price USD</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {variants.map((v: any) => (
-                    <tr
-                      key={v.id}
-                      className={`border-t border-gray-100 hover:bg-gray-50 transition ${form.id === v.id ? "bg-blue-50" : ""
-                        }`}
-                    >
-                      <td className="p-3">
-                        {v.variant1 ? (
-                          <>
-                            <span className="text-gray-400">
-                              {v.variant1}:
-                            </span>{" "}
-                            {v.value1}
-                          </>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {v.variant2 ? (
-                          <>
-                            <span className="text-gray-400">
-                              {v.variant2}:
-                            </span>{" "}
-                            {v.value2}
-                          </>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {v.variant3 ? (
-                          <>
-                            <span className="text-gray-400">
-                              {v.variant3}:
-                            </span>{" "}
-                            {v.value3}
-                          </>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={
-                            v.stock === 0
-                              ? "text-red-500 font-medium"
-                              : "text-gray-700"
-                          }
-                        >
-                          {v.stock}
-                        </span>
-                      </td>
-                      <td className="p-3 text-gray-700">
-                        {v.priceVND?.toLocaleString()}
-                      </td>
-                      <td className="p-3 text-gray-700">
-                        {v.priceUSD != null ? `$${v.priceUSD.toLocaleString()}` : "—"}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${v.status === "Active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
-                            }`}
-                        >
-                          {v.status}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex justify-end gap-3">
-                          <button
-                            onClick={() => editVariant(v)}
-                            className="text-sm text-gray-600 hover:text-gray-900"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteVariantRow(v.id)}
-                            className="text-sm text-red-500 hover:text-red-700"
-                          >
-                            Delete
-                          </button>
+          {groups.map((group) => {
+            const groupImages = imagesForGroup(group);
+            const isRenaming = renamingGroupKey === group.key;
+            const isEditingImages = activeImageGroupKey === group.key;
+            const addRowTemplate: SizeRow = {
+              id: undefined,
+              variant3: group.rows[0]?.variant3 ?? "Size",
+              value3: "",
+              stock: 0,
+              priceVND: 0,
+              priceUSD: 0,
+              status: "Active",
+            };
+            const addRowEdit = getRowEdit(group, addRowTemplate);
+            const addRowKey = rowKey(group, undefined);
+
+            return (
+              <section
+                key={group.key}
+                className="rounded-xl border border-gray-200 bg-white shadow-sm mb-8 overflow-hidden"
+              >
+                {/* ---- group header ---- */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3 sm:px-5 sm:py-4">
+                  {isRenaming ? (
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div>
+                        <label className={labelClass}>{group.variant1}</label>
+                        <input
+                          className={inputClass}
+                          value={renameValue1}
+                          onChange={(e) => setRenameValue1(e.target.value)}
+                        />
+                      </div>
+                      {group.variant2 && (
+                        <div>
+                          <label className={labelClass}>{group.variant2}</label>
+                          <input
+                            className={inputClass}
+                            value={renameValue2}
+                            onChange={(e) => setRenameValue2(e.target.value)}
+                          />
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-
-          {/* ============ VARIANT FORM + IMAGES ============ */}
-
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-12">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {form.id ? "Edit Variant" : "New Variant"}
-              </h2>
-              {form.id && (
-                <button
-                  onClick={newVariant}
-                  className="text-sm text-gray-500 hover:text-gray-800"
-                >
-                  Cancel edit
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              {([1, 2, 3] as const).map((n) => (
-                <div
-                  key={n}
-                  className="rounded-lg border border-gray-100 bg-gray-50 p-3"
-                >
-                  <p className="text-xs font-semibold text-gray-400 mb-2">
-                    Variant {n}
-                    {n > 1 && (
-                      <span className="font-normal"> · optional</span>
-                    )}
-                  </p>
-                  <div className="space-y-2">
-                    <div>
-                      <label className={labelClass}>Name</label>
-                      <input
-                        className={inputClass}
-                        placeholder={
-                          n === 1 ? "Color" : n === 2 ? "Material" : "Size"
-                        }
-                        value={(form as any)[`variant${n}`]}
-                        onChange={(e) =>
-                          setForm({ ...form, [`variant${n}`]: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Value</label>
-                      <input
-                        className={inputClass}
-                        placeholder={
-                          n === 1 ? "Red" : n === 2 ? "Silk" : "S"
-                        }
-                        value={(form as any)[`value${n}`]}
-                        onChange={(e) =>
-                          setForm({ ...form, [`value${n}`]: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <label className={labelClass}>Stock (quantity)</label>
-                <input
-                  type="number"
-                  className={inputClass}
-                  placeholder="0"
-                  value={form.stock}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) =>
-                    setForm({ ...form, stock: Number(e.target.value) })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Price (VND)</label>
-                <input
-                  type="number"
-                  className={inputClass}
-                  placeholder="0"
-                  value={form.priceVND}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) =>
-                    setForm({ ...form, priceVND: Number(e.target.value) })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Price (USD)</label>
-                <input
-                  type="number"
-                  className={inputClass}
-                  placeholder="0"
-                  value={form.priceUSD}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) =>
-                    setForm({ ...form, priceUSD: Number(e.target.value) })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Status</label>
-                <select
-                  className={selectClass + " w-full"}
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option>Active</option>
-                  <option>Draft</option>
-                </select>
-              </div>
-            </div>
-
-            {/* ---- Images, embedded, driven by the form above ---- */}
-
-            <div className="mt-8 pt-6 border-t border-gray-100">
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900">Images</h3>
-                  {canManageImages && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Shared across all sizes for{" "}
-                      <span className="font-medium text-gray-600">
-                        {imgKeyValue1}
-                        {imgKeyValue2 ? ` / ${imgKeyValue2}` : ""}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {!canManageImages ? (
-                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
-                  Fill in Variant 1{needsValue2 ? " and Variant 2" : ""} above
-                  (then click away from the field) to manage images for this
-                  combination.
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center gap-4 mb-5">
-
-                    <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition">
-                      Choose files
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                    </label>
-
-                    {dirty && (
-                      <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                        Image changes will save with the variant
-                      </span>
-                    )}
-                  </div>
-
-                  {staged.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
-                      No images yet for this combination — choose files above.
+                      )}
+                      <button
+                        onClick={() => saveRename(group)}
+                        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setRenamingGroupKey(null)}
+                        className="text-sm text-gray-500 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-4">
-                      {staged.map((img, index) => (
-                        <div
-                          key={img.kind === "existing" ? img.id : img.tempId}
-                          draggable
-                          onDragStart={() => setDraggedIndex(index)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => handleDrop(index)}
-                          className="group relative w-28 h-28 rounded-lg overflow-hidden border border-gray-200 shadow-sm cursor-grab active:cursor-grabbing"
-                        >
-                          <img
-                            src={
-                              img.kind === "existing"
-                                ? img.url
-                                : img.previewUrl
-                            }
-                            alt=""
-                            className={`w-full h-full object-cover ${img.kind === "new" ? "opacity-70" : ""
-                              }`}
-                          />
-
-                          {img.kind === "new" && (
-                            <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                              NEW
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => handleRemove(index)}
-                            className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {group.value1}
+                        {group.value2 ? ` / ${group.value2}` : ""}
+                      </h2>
+                      <button
+                        onClick={() => startRename(group)}
+                        className="text-xs text-gray-400 hover:text-gray-700"
+                      >
+                        Rename
+                      </button>
                     </div>
                   )}
 
-                  {staged.length > 1 && (
-                    <p className="mt-3 text-xs text-gray-400">
-                      Drag images to reorder them.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-            {processing && (
-              <div className="mb-4">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Processing images…</span>
-                  <span>{processProgress.done}/{processProgress.total}</span>
+                  <span className="text-xs text-gray-400">
+                    {group.rows.length} size{group.rows.length === 1 ? "" : "s"}
+                  </span>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 transition-all"
-                    style={{
-                      width: `${(processProgress.done / Math.max(processProgress.total, 1)) * 100}%`,
-                    }}
+
+                {/* ---- images (managed once per group) ---- */}
+                <div className="border-b border-gray-100 px-4 py-4 sm:px-5 sm:py-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Images
+                    </h3>
+                    {!isEditingImages && (<button onClick={() => openImageEditor(group)} className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 transition" >
+                      Edit </button>)}
+                  </div>
+
+                  {!isEditingImages ? (
+                    groupImages.length === 0 ? (
+                      <p className="text-sm text-gray-400">
+                        No images yet — shared across every size in this
+                        group.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {groupImages.map((img) => (
+                          <div
+                            key={img.id}
+                            className="h-16 w-16 overflow-hidden rounded-lg border border-gray-200 sm:h-20 sm:w-20"
+                          >
+                            <img
+                              src={img.url_thumb ?? img.url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                          Choose files
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFileSelect}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {dirty && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                            Unsaved changes
+                          </span>
+                        )}
+                      </div>
+
+                      {staged.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-400 mb-4">
+                          No images yet — choose files above.
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {staged.map((img, index) => (
+                            <div
+                              key={img.kind === "existing" ? img.id : img.tempId}
+                              draggable
+                              onDragStart={() => setDraggedIndex(index)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={() => handleDrop(index)}
+                              className="group relative h-20 w-20 cursor-grab overflow-hidden rounded-lg border border-gray-200 shadow-sm active:cursor-grabbing sm:h-24 sm:w-24"
+                            >
+                              <img
+                                src={
+                                  img.kind === "existing"
+                                    ? img.url
+                                    : img.previewUrl
+                                }
+                                alt=""
+                                className={`w-full h-full object-cover ${img.kind === "new" ? "opacity-70" : ""
+                                  }`}
+                              />
+
+                              {img.kind === "new" && (
+                                <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                  NEW
+                                </span>
+                              )}
+
+                              <button
+                                onClick={() => handleRemove(index)}
+                                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {processing && (
+                        <div className="mb-4">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Processing images…</span>
+                            <span>
+                              {processProgress.done}/{processProgress.total}
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 transition-all"
+                              style={{
+                                width: `${(processProgress.done /
+                                  Math.max(processProgress.total, 1)) *
+                                  100
+                                  }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-4">
+                        <button
+                          onClick={closeImageEditor}
+                          className="text-sm text-gray-500 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => syncImages(group)}
+                          disabled={syncing || !dirty}
+                          className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                          {processing
+                            ? "Processing images…"
+                            : syncing
+                              ? "Saving…"
+                              : "Save images"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ---- sizes (no image controls in here at all) ---- */}
+                <div className="px-4 py-4 sm:px-5 sm:py-5">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Sizes
+                  </h3>
+
+                  <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                  <table className="min-w-[720px] w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+                        <th className="p-2">{group.rows[0]?.variant3 ?? "Size"}</th>
+                        <th className="p-2">Stock</th>
+                        <th className="p-2">Price VND</th>
+                        <th className="p-2">Price USD</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.rows.map((row) => {
+                        const key = rowKey(group, row.id);
+                        const edited = getRowEdit(group, row);
+
+                        return (
+                          <tr key={key} className="border-t border-gray-100">
+                            <td className="p-2">
+                              <input
+                                className={cellInputClass}
+                                value={edited.value3}
+                                onChange={(e) =>
+                                  updateRowEdit(group, row, {
+                                    value3: e.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                className={cellInputClass}
+                                value={edited.stock}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) =>
+                                  updateRowEdit(group, row, {
+                                    stock: Number(e.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                className={cellInputClass}
+                                value={edited.priceVND}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) =>
+                                  updateRowEdit(group, row, {
+                                    priceVND: Number(e.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                className={cellInputClass}
+                                value={edited.priceUSD}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) =>
+                                  updateRowEdit(group, row, {
+                                    priceUSD: Number(e.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="p-2">
+                              <select
+                                className={selectClass}
+                                value={edited.status}
+                                onChange={(e) =>
+                                  updateRowEdit(group, row, {
+                                    status: e.target.value,
+                                  })
+                                }
+                              >
+                                <option>Active</option>
+                                <option>Draft</option>
+                              </select>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex justify-end gap-3">
+                                <button
+                                  onClick={() => saveRow(group, row)}
+                                  disabled={savingRowKey === key}
+                                  className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:text-blue-800 disabled:opacity-50 transition"
+                                >
+                                  {savingRowKey === key ? "Saving…" : "Save"}
+                                </button>
+                                <button
+                                  onClick={() => deleteRow(row.id!)}
+                                  className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-100 hover:text-red-700 transition"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* ---- add-size row ---- */}
+                      <tr className="border-t border-gray-100 bg-gray-50">
+                        <td className="p-2">
+                          <input
+                            className={cellInputClass}
+                            placeholder="e.g. M"
+                            value={addRowEdit.value3}
+                            onChange={(e) =>
+                              updateRowEdit(group, addRowTemplate, {
+                                value3: e.target.value,
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            className={cellInputClass}
+                            value={addRowEdit.stock}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) =>
+                              updateRowEdit(group, addRowTemplate, {
+                                stock: Number(e.target.value),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            className={cellInputClass}
+                            value={addRowEdit.priceVND}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) =>
+                              updateRowEdit(group, addRowTemplate, {
+                                priceVND: Number(e.target.value),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            className={cellInputClass}
+                            value={addRowEdit.priceUSD}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) =>
+                              updateRowEdit(group, addRowTemplate, {
+                                priceUSD: Number(e.target.value),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="p-2">
+                          <select
+                            className={selectClass}
+                            value={addRowEdit.status}
+                            onChange={(e) =>
+                              updateRowEdit(group, addRowTemplate, {
+                                status: e.target.value,
+                              })
+                            }
+                          >
+                            <option>Active</option>
+                            <option>Draft</option>
+                          </select>
+                        </td>
+                        <td className="p-2">
+                          <button
+                            onClick={() => saveRow(group, addRowTemplate)}
+                            disabled={
+                              savingRowKey === addRowKey || !addRowEdit.value3.trim()
+                            }
+                            className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50"
+                          >
+                            {savingRowKey === addRowKey ? "Adding…" : "+ Add size"}
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+
+          {/* ============ NEW GROUP ============ */}
+
+          {!showNewGroup ? (
+            <button
+              onClick={() => setShowNewGroup(true)}
+              className="mb-12 rounded-lg border border-dashed border-gray-300 px-5 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-900"
+            >
+              + New color/style group
+            </button>
+          ) : (
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-12">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  New color/style group
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowNewGroup(false);
+                    setNewGroup(emptyNewGroup);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 mb-4">
+                Leave Color blank if this product has no color/style split —
+                it'll default to a single shared group. This creates the
+                group's first size; add more sizes from the group's table
+                once it's created.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className={labelClass}>Color</label>
+                  <input
+                    className={inputClass}
+                    placeholder="Red"
+                    value={newGroup.value1}
+                    onChange={(e) =>
+                      setNewGroup({ ...newGroup, value1: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Material (optional)</label>
+                  <input
+                    className={inputClass}
+                    placeholder="Silk"
+                    value={newGroup.value2}
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        variant2: e.target.value ? "Material" : "",
+                        value2: e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
-            )}
 
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={saveVariant}
-                disabled={syncing}
-                className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
-              >
-                {processing ? "Processing images…" : syncing ? "Saving…" : form.id ? "Update Variant" : "Create Variant"}
-              </button>
-            </div>
+              <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-5">
+                <div>
+                  <label className={labelClass}>Size</label>
+                  <input
+                    className={inputClass}
+                    placeholder="S"
+                    value={newGroup.value3}
+                    onChange={(e) =>
+                      setNewGroup({ ...newGroup, value3: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Stock</label>
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={newGroup.stock}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        stock: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Price (VND)</label>
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={newGroup.priceVND}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        priceVND: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Price (USD)</label>
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={newGroup.priceUSD}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) =>
+                      setNewGroup({
+                        ...newGroup,
+                        priceUSD: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Status</label>
+                  <select
+                    className={selectClass + " w-full"}
+                    value={newGroup.status}
+                    onChange={(e) =>
+                      setNewGroup({ ...newGroup, status: e.target.value })
+                    }
+                  >
+                    <option>Active</option>
+                    <option>Draft</option>
+                  </select>
+                </div>
+              </div>
 
-          </section>
+              <div className="flex justify-end">
+                <button
+                  onClick={createGroup}
+                  className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+                >
+                  Create group
+                </button>
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

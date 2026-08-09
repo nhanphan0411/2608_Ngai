@@ -2,6 +2,48 @@ import { getDB } from "@/lib/d1";
 import type { Inventory } from "@/types/db";
 import { deleteImagesForVariantGroup } from "@/lib/db/images";
 
+/**
+ * Strips whitespace and lowercases a variant field. Applied to every
+ * variant1/value1/variant2/value2/variant3/value3 write so "Red " and "red"
+ * can never both exist as separate option values. Does NOT touch
+ * product_name/description/collection_name/etc — those are free text the
+ * customer reads verbatim, and are normalized (if at all) at their own
+ * db layer (lib/db/products.ts / lib/db/collections.ts), not here.
+ */
+function normalize(v: string | null | undefined): string | null {
+  if (v == null) return null;
+  const trimmed = v.trim().toLowerCase();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Applies normalize() to every variant name/value field, then defaults
+ * variant1/value1 to "color"/"original" and variant3/value3 to
+ * "size"/"one-size" when left blank. variant2/value2 stay optional (null)
+ * on purpose — there's no third mandatory axis in this catalog.
+ *
+ * This is the single choke point all variant writes (createVariant,
+ * updateVariant, saveInventory) pass through, so the defaulting and
+ * normalization rules only need to live in one place.
+ */
+function withVariantDefaults<
+  T extends {
+    variant1: string | null; value1: string | null;
+    variant2: string | null; value2: string | null;
+    variant3: string | null; value3: string | null;
+  }
+>(item: T): T {
+  return {
+    ...item,
+    variant1: normalize(item.variant1) ?? "color",
+    value1:   normalize(item.value1)   ?? "original",
+    variant2: normalize(item.variant2),
+    value2:   normalize(item.value2),
+    variant3: normalize(item.variant3) ?? "size",
+    value3:   normalize(item.value3)   ?? "one-size",
+  };
+}
+
 export async function getInventory(productSlug: string): Promise<Inventory[]> {
   const db = await getDB();
 
@@ -101,19 +143,21 @@ export async function saveInventory(inventory: Inventory[]): Promise<void> {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const batch = inventory.map((item) =>
-    stmt.bind(
-      item.id, item.collection_slug, item.product_slug,
-      item.variant1, item.value1, item.variant2, item.value2, item.variant3, item.value3,
-      item.stock, item.priceVND, item.priceUSD, item.status
-    )
-  );
+  const batch = inventory.map((item) => {
+    const v = withVariantDefaults(item);
+    return stmt.bind(
+      v.id, v.collection_slug, v.product_slug,
+      v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
+      v.stock, v.priceVND, v.priceUSD, v.status
+    );
+  });
 
   if (batch.length > 0) await db.batch(batch);
 }
 
 export async function createVariant(item: Omit<Inventory, "id">) {
   const db = await getDB();
+  const v = withVariantDefaults(item);
 
   await db.prepare(`
     INSERT INTO inventory (
@@ -123,15 +167,16 @@ export async function createVariant(item: Omit<Inventory, "id">) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   .bind(
-    item.collection_slug, item.product_slug,
-    item.variant1, item.value1, item.variant2, item.value2, item.variant3, item.value3,
-    item.stock, item.priceVND, item.priceUSD, item.status
+    v.collection_slug, v.product_slug,
+    v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
+    v.stock, v.priceVND, v.priceUSD, v.status
   )
   .run();
 }
 
 export async function updateVariant(item: Inventory) {
   const db = await getDB();
+  const v = withVariantDefaults(item);
 
   await db.prepare(`
     UPDATE inventory
@@ -142,10 +187,10 @@ export async function updateVariant(item: Inventory) {
     WHERE id = ?
   `)
   .bind(
-    item.collection_slug, item.product_slug,
-    item.variant1, item.value1, item.variant2, item.value2, item.variant3, item.value3,
-    item.stock, item.priceVND, item.priceUSD, item.status,
-    item.id
+    v.collection_slug, v.product_slug,
+    v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
+    v.stock, v.priceVND, v.priceUSD, v.status,
+    v.id
   )
   .run();
 }
