@@ -1,0 +1,38 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "ecom-ngai",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2026-08-08",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "ecom-ngai"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ecom-db",
+			"database_id": "232c0577-72bf-428c-b990-5616ea68632a",
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "NEXT_CACHE_WORKERS_KV",
+			"id": "ebd9197f42e545bd943856a8055975d4"
+		}
+	],
+	"r2_buckets": [
+		{
+			"bucket_name": "ecom-images",
+			"binding": "ecom_images"
+		}
+	]
+}
