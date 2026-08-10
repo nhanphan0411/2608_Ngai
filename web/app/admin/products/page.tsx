@@ -15,7 +15,7 @@ export default function ProductsPage() {
     product_name: "",
     product_slug: "",
     category: "",
-    status: "Active",
+    status: "Draft",
     description: "",
     shipping: "",
     sizeGuide: "",

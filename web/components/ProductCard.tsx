@@ -151,7 +151,7 @@ export default function ProductCard({
 
       <div className="p-3 space-y-2">
         <Link href={`/products/${product.product_slug}`}>
-          <h2 className="font-medium hover:underline">
+          <h2 className="text-center hover:underline">
             {product.product_name}
           </h2>
         </Link>
@@ -200,7 +200,7 @@ export default function ProductCard({
 
         {selectedVariant ? (
           <>
-            <p className="text-sm font-medium">
+            <p className="text-sm text-center">
               {formatPrice(
                 selectedVariant.priceVND,
                 selectedVariant.priceUSD,

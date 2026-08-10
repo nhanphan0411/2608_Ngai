@@ -10,7 +10,7 @@ export default function CollectionsPage() {
     collection_name: "",
     collection_slug: "",
     description: "",
-    status: "Active",
+    status: "Draft",
   };
 
   const [form, setForm] = useState(emptyForm);

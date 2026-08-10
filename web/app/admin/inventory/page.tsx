@@ -10,6 +10,7 @@ type StagedImage =
 type SizeRow = { id?: number; variant3: string; value3: string; stock: number; priceVND: number; priceUSD: number; status: string };
 type Group = { key: string; variant1: string; value1: string; variant2: string; value2: string; rows: SizeRow[] };
 type NewSize = { value3: string; stock: number; priceVND: number; priceUSD: number; status: string };
+type StagedNewImage = { tempId: string; file: File; previewUrl: string };
 
 const DEFAULT_VALUE1 = "original";
 const groupKey = (v1: string, v2: string) => `${v1}||${v2}`;
@@ -37,10 +38,12 @@ export default function InventoryPage() {
 
   // New group
   const emptyNewGroup = { variant1: "Color", value1: "", variant2: "", value2: "", variant3: "Size" };
-  const emptySize = (): NewSize => ({ value3: "", stock: 0, priceVND: 0, priceUSD: 0, status: "Active" });
+  const emptySize = (): NewSize => ({ value3: "", stock: 0, priceVND: 0, priceUSD: 0, status: "Draft" });
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroup, setNewGroup] = useState(emptyNewGroup);
   const [newSizes, setNewSizes] = useState<NewSize[]>([emptySize()]);
+  const [newGroupImages, setNewGroupImages] = useState<StagedNewImage[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
   // Image editor
   const [staged, setStaged] = useState<StagedImage[]>([]);
@@ -67,7 +70,7 @@ export default function InventoryPage() {
 
   function resetProductState() {
     setVariants([]); setAllImages([]); setShowNewGroup(false);
-    setNewGroup(emptyNewGroup); setNewSizes([emptySize()]);
+    setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setNewGroupImages([]);
     closeEditModal();
   }
 
@@ -184,6 +187,38 @@ export default function InventoryPage() {
     const data = await res.json() as { images?: any[]; failures?: string[]; error?: string };
     if (!res.ok) throw new Error(data.error || "Image sync failed.");
     if (data.failures?.length) throw new Error(`Some image changes couldn't be completed:\n${data.failures.join("\n")}`);
+  }
+
+  async function uploadNewGroupImages(value1: string, value2: string) {
+    if (newGroupImages.length === 0) return;
+
+    setProcessing(true);
+    setProcessProgress({ done: 0, total: newGroupImages.length });
+
+    const formData = new FormData();
+    formData.append("product_slug", productSlug);
+    formData.append("value1", value1);
+    if (value2) formData.append("value2", value2);
+    formData.append("deleteIds", JSON.stringify([]));
+    formData.append(
+      "order",
+      JSON.stringify(newGroupImages.map((_, i) => ({ type: "new", fileIndex: i })))
+    );
+
+    for (let i = 0; i < newGroupImages.length; i++) {
+      const { thumb, mid, large } = await processImage(newGroupImages[i].file);
+      formData.append(`new_thumb_${i}`, thumb, `thumb-${i}.webp`);
+      formData.append(`new_mid_${i}`, mid, `mid-${i}.webp`);
+      formData.append(`new_large_${i}`, large, `large-${i}.webp`);
+      setProcessProgress({ done: i + 1, total: newGroupImages.length });
+    }
+
+    setProcessing(false);
+
+    const res = await fetch("/api/admin/images/sync", { method: "POST", body: formData });
+    const data = await res.json() as { images?: any[]; failures?: string[]; error?: string };
+    if (!res.ok) throw new Error(data.error || "Image upload failed.");
+    if (data.failures?.length) throw new Error(`Some images couldn't be uploaded:\n${data.failures.join("\n")}`);
   }
 
   // ---- save (sizes + images only — value1/value2 never change here; see renameGroup) ----
@@ -320,26 +355,52 @@ export default function InventoryPage() {
   const addNewSize = () => setNewSizes(prev => [...prev, emptySize()]);
   const updateNewSize = (i: number, patch: Partial<NewSize>) => setNewSizes(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
   const removeNewSize = (i: number) => setNewSizes(prev => prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i));
+  function handleNewGroupFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const items: StagedNewImage[] = Array.from(files).map(file => ({
+      tempId: crypto.randomUUID(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setNewGroupImages(prev => [...prev, ...items]);
+    e.target.value = "";
+  }
+
+  function removeNewGroupImage(tempId: string) {
+    setNewGroupImages(prev => prev.filter(img => img.tempId !== tempId));
+  }
 
   async function createGroup() {
     const value1 = newGroup.value1.trim() || DEFAULT_VALUE1;
+    const value2 = newGroup.value2.trim();
     const validSizes = newSizes.filter(s => s.value3.trim());
     if (validSizes.length === 0) { alert("Please add at least one size."); return; }
 
+    setCreatingGroup(true);
+
     try {
+      // Images first — if this fails, no inventory rows exist yet, so nothing is half-created.
+      await uploadNewGroupImages(value1, value2);
+
       for (const size of validSizes) {
         await inventoryReq("POST", {
           collection_slug: collectionSlug, product_slug: productSlug,
           variant1: newGroup.variant1 || "Color", value1,
-          variant2: newGroup.variant2 || null, value2: newGroup.variant2 ? newGroup.value2 : null,
+          variant2: newGroup.variant2 || null, value2: newGroup.variant2 ? value2 : null,
           variant3: newGroup.variant3 || "Size", value3: size.value3,
           stock: size.stock, priceVND: size.priceVND, priceUSD: size.priceUSD, status: size.status,
         }, `Failed to create size "${size.value3}".`);
       }
-      setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setShowNewGroup(false);
+
+      setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setNewGroupImages([]); setShowNewGroup(false);
       await loadVariants();
+      await loadAllImages();
     } catch (err: any) {
       alert(err.message || "Failed to create group.");
+    } finally {
+      setCreatingGroup(false);
+      setProcessing(false);
     }
   }
 
@@ -456,12 +517,12 @@ export default function InventoryPage() {
           </div>
 
           {!showNewGroup ? (
-            <button onClick={() => setShowNewGroup(true)} className="mt-6 mb-12 w-full rounded-xl border border-dashed border-gray-300 px-5 py-4 text-sm font-medium text-gray-600 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900">+ New color/style group</button>
+            <button onClick={() => setShowNewGroup(true)} className="mt-6 mb-12 w-full rounded-xl border border-dashed border-gray-300 px-5 py-4 text-sm font-medium text-gray-600 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900">+ New Group</button>
           ) : (
             <section className="mt-6 mb-12 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">New Group</h2>
-                <button onClick={() => { setShowNewGroup(false); setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); }} className="text-sm text-gray-500 hover:text-gray-800">Cancel</button>
+                <button onClick={() => { setShowNewGroup(false); setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setNewGroupImages([]) }} className="text-sm text-gray-500 hover:text-gray-800">Cancel</button>
               </div>
 
               <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -469,6 +530,35 @@ export default function InventoryPage() {
                   <input className={inputClass} placeholder="leave blank if not divide variant by color" value={newGroup.value1} onChange={e => setNewGroup({ ...newGroup, value1: e.target.value })} /></div>
                 <div><label className={labelClass}>Material <span className="font-normal text-gray-400">(optional)</span></label>
                   <input className={inputClass} placeholder="leave blank if not divide variant by material" value={newGroup.value2} onChange={e => setNewGroup({ ...newGroup, variant2: e.target.value ? "Material" : "", value2: e.target.value })} /></div>
+              </div>
+
+              <div className="mb-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Images</h3>
+                  <label className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
+                    + Add images
+                    <input type="file" accept="image/*" multiple onChange={handleNewGroupFileSelect} className="hidden" />
+                  </label>
+                </div>
+                {newGroupImages.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">
+                    No images yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {newGroupImages.map(img => (
+                      <div key={img.tempId} className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                        <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
+                        <button
+                          onClick={() => removeNewGroupImage(img.tempId)}
+                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="mb-4 flex items-center justify-between">
@@ -496,7 +586,17 @@ export default function InventoryPage() {
               </div>
 
               <div className="mt-6 flex justify-end">
-                <button onClick={createGroup} className="w-full rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto">Create group</button>
+                <button
+                  onClick={createGroup}
+                  disabled={creatingGroup || processing}
+                  className="w-full rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 sm:w-auto"
+                >
+                  {processing
+                    ? `Processing ${processProgress.done}/${processProgress.total}…`
+                    : creatingGroup
+                      ? "Creating…"
+                      : "Create group"}
+                </button>
               </div>
             </section>
           )}

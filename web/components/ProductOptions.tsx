@@ -190,13 +190,12 @@ export default function ProductOptions({
                                 onClick={() =>
                                     selectOption(optionIndex, option.name, value)
                                 }
-                                className={`rounded border px-4 py-2 text-sm ${
-                                    active
+                                className={`rounded border px-4 py-2 text-sm ${active
                                         ? "bg-black text-white"
                                         : !available
-                                        ? "cursor-not-allowed opacity-30"
-                                        : ""
-                                }`}
+                                            ? "cursor-not-allowed opacity-30"
+                                            : ""
+                                    }`}
                             >
                                 {value}
                             </button>
@@ -245,10 +244,10 @@ export default function ProductOptions({
                 <p className="text-lg">
                     {selectedVariant
                         ? formatPrice(
-                              selectedVariant.priceVND,
-                              selectedVariant.priceUSD,
-                              currency
-                          )
+                            selectedVariant.priceVND,
+                            selectedVariant.priceUSD,
+                            currency
+                        )
                         : "Select options"}
                 </p>
 
@@ -263,7 +262,13 @@ export default function ProductOptions({
                     Free shipping · Ships within 2–3 business days
                 </p>
 
-                {otherOptions.map((option) => renderOptionGroup(option))}
+                {otherOptions.map((option) => {
+                    if (/color/i.test(option.name) && option.values.length === 1) {
+                        return null;
+                    }
+
+                    return renderOptionGroup(option);
+                })}
 
                 <div className="mt-2 w-full">
                     {selectedVariant ? (
