@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { addToCart } from "@/lib/cart";
-import { formatPrice } from "@/lib/currency";
-import { getCurrency } from "@/lib/currency";
+import { formatPrice, getCurrency } from "@/lib/currency";
 import Image from "next/image";
 
 export default function ProductOptions({
+    product,
     options,
     variants,
     images,
 }: {
+    product: { product_name: string; category: string | null; description?: string | null };
     options: {
         name: string;
         values: string[];
@@ -18,6 +19,7 @@ export default function ProductOptions({
     variants: any[];
     images: any[];
 }) {
+    console.log("ProductOptions received product:", product);
     const [selected, setSelected] = useState<Record<string, string>>(() => {
         const first = variants[0];
 
@@ -30,11 +32,8 @@ export default function ProductOptions({
         return initial;
     });
 
-    const [imgIndex, setImgIndex] = useState(0);
-
     // Re-render when currency changes
     const [, forceRender] = useState(0);
-
     const [currency, setCurrencyState] = useState<"VND" | "USD">("VND");
 
     useEffect(() => {
@@ -147,8 +146,6 @@ export default function ProductOptions({
 
             return next;
         });
-
-        setImgIndex(0);
     }
 
     const activeValue1 = variants[0]?.variant1
@@ -165,138 +162,135 @@ export default function ProductOptions({
         return true;
     });
 
-    const currentImage = galleryImages[imgIndex] ?? galleryImages[0];
+    // "Size" gets its own slot in the vertical order; every other option
+    // (color, material, etc.) is grouped under "variants" near the bottom.
+    const sizeOption = options.find((o) => /size/i.test(o.name));
+    const otherOptions = options.filter((o) => o !== sizeOption);
+
+    function renderOptionGroup(option: { name: string; values: string[] }) {
+        const optionIndex = options.indexOf(option);
+
+        return (
+            <div key={option.name}>
+                <h2 className="mb-2 text-sm font-bold">{option.name}</h2>
+
+                <div className="flex flex-wrap gap-2">
+                    {option.values.map((value) => {
+                        const active = selected[option.name] === value;
+                        const available = isOptionValueAvailable(
+                            optionIndex,
+                            option.name,
+                            value
+                        );
+
+                        return (
+                            <button
+                                key={value}
+                                disabled={!available}
+                                onClick={() =>
+                                    selectOption(optionIndex, option.name, value)
+                                }
+                                className={`rounded border px-4 py-2 text-sm ${
+                                    active
+                                        ? "bg-black text-white"
+                                        : !available
+                                        ? "cursor-not-allowed opacity-30"
+                                        : ""
+                                }`}
+                            >
+                                {value}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            <div className="aspect-square bg-gray-100 relative mb-6">
-                {currentImage ? (
-                    <Image
-                        src={currentImage.url_mid}
-                        alt=""
-                        fill
-                        sizes="(max-width: 768px) 50vw, 33vw"
-                        className="object-cover"
-                    />
+        <div className="md:flex md:h-[calc(100vh-4rem)] md:min-h-0 md:h-screen">
+            {/* Image column — 50vw on desktop, scrolls independently */}
+            <div className="md:h-screen md:w-[50vw] md:overflow-y-auto">
+                {galleryImages.length > 0 ? (
+                    galleryImages.map((img, i) => (
+                        <div
+                            key={img.id ?? i}
+                            className="relative aspect-square w-full bg-gray-100"
+                        >
+                            <Image
+                                src={img.url_mid}
+                                alt=""
+                                fill
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                                className="object-cover"
+                                priority={i === 0}
+                            />
+                        </div>
+                    ))
                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                    <div className="flex aspect-square w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
                         No image
                     </div>
                 )}
-
-                {galleryImages.length > 1 && (
-                    <>
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setImgIndex(
-                                    (i) =>
-                                        (i - 1 + galleryImages.length) %
-                                        galleryImages.length
-                                );
-                            }}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full w-8 h-8"
-                        >
-                            ‹
-                        </button>
-
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                setImgIndex(
-                                    (i) => (i + 1) % galleryImages.length
-                                );
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full w-8 h-8"
-                        >
-                            ›
-                        </button>
-                    </>
-                )}
             </div>
 
-            {options.map((option, optionIndex) => (
-                <div key={option.name}>
-                    <h2 className="font-bold mb-2">
-                        {option.name}
-                    </h2>
+            {/* Details column — 30vw on desktop, centered content */}
+            <div className="flex flex-col justify-center gap-6 px-8 py-10 md:h-screen md:w-[30vw]">
+                <p className="text-sm tracking-wide text-gray-500">
+                    {product.category}
+                </p>
 
-                    <div className="flex gap-2 flex-wrap">
-                        {option.values.map((value) => {
-                            const active =
-                                selected[option.name] === value;
+                <h1 className="text-3xl font-bold">{product.product_name}</h1>
 
-                            const available =
-                                isOptionValueAvailable(
-                                    optionIndex,
-                                    option.name,
-                                    value
-                                );
+                <p className="text-lg">
+                    {selectedVariant
+                        ? formatPrice(
+                              selectedVariant.priceVND,
+                              selectedVariant.priceUSD,
+                              currency
+                          )
+                        : "Select options"}
+                </p>
 
-                            return (
-                                <button
-                                    key={value}
-                                    disabled={!available}
-                                    onClick={() =>
-                                        selectOption(
-                                            optionIndex,
-                                            option.name,
-                                            value
-                                        )
-                                    }
-                                    className={`border rounded px-4 py-2 ${active
-                                            ? "bg-black text-white"
-                                            : !available
-                                                ? "opacity-30 cursor-not-allowed"
-                                                : ""
-                                        }`}
-                                >
-                                    {value}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-
-            <div className="border rounded p-4">
-                <h2 className="font-bold mb-4">
-                    Selected Variant
-                </h2>
-
-                {selectedVariant ? (
-                    <>
-                        <p>
-                            Stock: {selectedVariant.stock}
-                        </p>
-
-                        <p>
-                            Price:{" "}
-                            {formatPrice(
-                                selectedVariant.priceVND,
-                                selectedVariant.priceUSD,
-                                currency
-                            )}
-                        </p>
-
-                        <button
-                            className="mt-6 border rounded px-4 py-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                            disabled={
-                                selectedVariant.stock === 0
-                            }
-                            onClick={() => {
-                                addToCart(selectedVariant.id);
-                                alert("Added to cart");
-                            }}
-                        >
-                            {selectedVariant.stock === 0
-                                ? "Out of Stock"
-                                : "Add to Cart"}
-                        </button>
-                    </>
-                ) : (
-                    <p>Please select all options.</p>
+                {product.description && (
+                    <p className="text-sm text-gray-600">{product.description}</p>
                 )}
+
+                {sizeOption && renderOptionGroup(sizeOption)}
+
+                {/* TODO: wire up real shipping data once available */}
+                <p className="text-xs text-gray-500">
+                    Free shipping · Ships within 2–3 business days
+                </p>
+
+                {otherOptions.map((option) => renderOptionGroup(option))}
+
+                <div className="mt-2 w-full">
+                    {selectedVariant ? (
+                        <>
+                            <p className="mb-3 text-xs text-gray-500">
+                                {selectedVariant.stock > 0
+                                    ? `${selectedVariant.stock} in stock`
+                                    : "Out of stock"}
+                            </p>
+
+                            <button
+                                className="w-full rounded border px-4 py-3 disabled:cursor-not-allowed disabled:opacity-30"
+                                disabled={selectedVariant.stock === 0}
+                                onClick={() => {
+                                    addToCart(selectedVariant.id);
+                                    alert("Added to cart");
+                                }}
+                            >
+                                {selectedVariant.stock === 0
+                                    ? "Out of Stock"
+                                    : "Add to Cart"}
+                            </button>
+                        </>
+                    ) : (
+                        <p className="text-sm">Please select all options.</p>
+                    )}
+                </div>
             </div>
         </div>
     );

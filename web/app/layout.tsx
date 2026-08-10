@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import SiteChrome from "@/components/SiteChrome";
 import Toast from "@/components/Toast";
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -23,12 +22,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="vi"
-      className={`${beVietnamPro.variable} h-full antialiased`}
-    >
+    <html lang="vi" className={`${beVietnamPro.variable} h-full antialiased`}>
       <body className="min-h-full font-[family-name:var(--font-be-vietnam-pro)]">
-        {children}
+        <SiteChrome>{children}</SiteChrome>
+        <Toast />
       </body>
     </html>
   );

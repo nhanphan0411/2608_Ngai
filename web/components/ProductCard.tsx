@@ -113,11 +113,11 @@ export default function ProductCard({
   }
 
   return (
-    <div className="border rounded overflow-hidden">
+    <div className="overflow-hidden">
       <div className="aspect-square bg-gray-100 relative">
         {currentImage ? (
           <Image
-            src={currentImage.url_thumb}
+            src={currentImage.url_mid}
             alt={product.product_name}
             fill
             sizes="(max-width:768px) 50vw, 33vw"
@@ -208,7 +208,7 @@ export default function ProductCard({
               )}
             </p>
 
-            <button
+            {/* <button
               className="w-full border rounded px-3 py-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
               disabled={selectedVariant.stock === 0}
               onClick={() => {
@@ -219,7 +219,7 @@ export default function ProductCard({
               {selectedVariant.stock === 0
                 ? "Out of Stock"
                 : "Add to Cart"}
-            </button>
+            </button> */}
           </>
         ) : (
           <p className="text-xs text-gray-400">

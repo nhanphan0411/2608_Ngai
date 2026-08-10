@@ -39,27 +39,14 @@ export default async function ProductPage({
   const images: any[] = await getAllImagesForProduct(slug);
   const options = buildProductOptions(inventory);
 
+  console.log("ProductPage: slug =", slug, "product =", product?.product_name);
+
   return (
-    <main className="max-w-5xl mx-auto p-10">
-
-      <h1 className="text-4xl font-bold">
-        {product.product_name}
-      </h1>
-
-      <p className="mt-2 text-gray-500">
-        {product.category}
-      </p>
-
-      <div className="mt-10">
-
-        <ProductOptions
-          options={options}
-          variants={inventory}
-          images={images}
-        />
-
-      </div>
-
-    </main>
+    <ProductOptions
+      product={product}
+      options={options}
+      variants={inventory}
+      images={images}
+    />
   );
 }

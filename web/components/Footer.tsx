@@ -14,7 +14,7 @@ export default function Footer() {
   if (!settings) return null;
 
   return (
-    <footer className="border-t mt-16 py-10 text-sm text-gray-500">
+    <footer className="border-t py-10 text-sm text-gray-500">
       <div className="max-w-6xl mx-auto px-6 space-y-2">
         <p className="font-semibold text-gray-800">{settings.store_name}</p>
         {settings.store_description && <p>{settings.store_description}</p>}
