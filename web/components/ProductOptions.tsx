@@ -218,7 +218,7 @@ export default function ProductOptions({
                             className="relative aspect-square w-full bg-gray-100"
                         >
                             <Image
-                                src={img.url_mid}
+                                src={img.url_large}
                                 alt=""
                                 fill
                                 sizes="(max-width: 768px) 100vw, 50vw"
