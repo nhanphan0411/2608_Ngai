@@ -244,11 +244,12 @@ export async function updateProduct(product: Product) {
 export async function deleteProduct(id: number) {
   const db = await getDB();
 
-  await db.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
-
   await deleteInventoryForProduct(id);
   await deleteImagesForProduct(id);
   await deleteVariantGroupsForProduct(id);
+
+  await db.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
+
 }
 
 export async function getProductsByCategory(categoryName: string): Promise<Product[]> {

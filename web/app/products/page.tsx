@@ -19,8 +19,8 @@ export default async function ProductsPage({
   const cards = await Promise.all(
     products.map(async (product) => ({
       product,
-      variants: await getInventory(product.product_slug),
-      images: await getAllImagesForProduct(product.product_slug),
+      variants: await getInventory(product.id),
+      images: await getAllImagesForProduct(product.id),
     }))
   );
   const columns = 3; // matches md:grid-cols-3
