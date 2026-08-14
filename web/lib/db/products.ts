@@ -1,7 +1,7 @@
 import { getDB } from "@/lib/d1";
 import { Product } from "@/types/db";
-import { deleteInventoryForProduct } from "@/lib/db/inventory";
 import { deleteImagesForProduct } from "@/lib/db/images";
+import { deleteInventoryForProduct, deleteVariantGroupsForProduct } from "@/lib/db/inventory";
 
 const PAGE_SIZE = 20;
 
@@ -113,12 +113,12 @@ export async function getProductsByCollection(collectionId: number): Promise<Pro
  * a URL slug touches SQL directly — every downstream call (inventory,
  * images, cascades) uses product.id from here on, not the slug.
  */
-export async function getProduct(slug: string): Promise<Product | null> {
+export async function getProduct(id: number): Promise<Product | null> {
   const db = await getDB();
 
   return (await db
-    .prepare(`SELECT * FROM products WHERE product_slug = ?`)
-    .bind(slug)
+    .prepare(`SELECT * FROM products WHERE id = ? LIMIT 1`)
+    .bind(id)
     .first()) as Product | null;
 }
 
@@ -128,6 +128,17 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   return (await db
     .prepare(`SELECT * FROM products WHERE product_slug = ? LIMIT 1`)
     .bind(slug)
+    .first()) as Product | null;
+}
+
+/** Id -> row lookup. Used anywhere we already have a numeric product_id
+ * (e.g. off an inventory row) and don't want to round-trip through a slug. */
+export async function getProductById(id: number): Promise<Product | null> {
+  const db = await getDB();
+
+  return (await db
+    .prepare(`SELECT * FROM products WHERE id = ? LIMIT 1`)
+    .bind(id)
     .first()) as Product | null;
 }
 
@@ -237,6 +248,7 @@ export async function deleteProduct(id: number) {
 
   await deleteInventoryForProduct(id);
   await deleteImagesForProduct(id);
+  await deleteVariantGroupsForProduct(id);
 }
 
 export async function getProductsByCategory(categoryName: string): Promise<Product[]> {

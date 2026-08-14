@@ -12,7 +12,7 @@ import { normalize } from "@/lib/db/inventory";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
-
+  const variant_group_id = formData.get("variant_group_id") as unknown as number;
   const productSlug = formData.get("product_slug") as string;
   const value1 = normalize(formData.get("value1") as string) as string;
   const value2 = normalize(formData.get("value2") as string | null);
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       ]);
 
       const id = await insertImage(
-        productSlug, value1, value2,
+        variant_group_id,
         { thumb: keyThumb, mid: keyMid, large: keyLarge },
         { thumb: urlThumb, mid: urlMid, large: urlLarge }
       );
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   await updateSortOrders(finalOrder);
 
-  const images = await getImages(productSlug, value1, value2 ?? undefined);
+  const images = await getImages(variant_group_id ?? undefined);
 
   return NextResponse.json({
     images,

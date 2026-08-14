@@ -43,7 +43,7 @@ T extends {
  * "color=red" into a real group id — every insert/update goes through
  * this instead of ever writing value1/value2 onto images directly.
  */
-async function findOrCreateVariantGroup(
+export async function findOrCreateVariantGroup(
   productId: number,
   value1: string,
   value2: string | null
@@ -66,6 +66,29 @@ async function findOrCreateVariantGroup(
     .run();
 
   return Number(result.meta.last_row_id);
+}
+
+/**
+ * Renames a variant group in place — updates value1/value2 on the
+ * variant_groups row itself. Because inventory rows and images both
+ * reference variant_group_id (not value1/value2 text), nothing else
+ * needs to change: every row and every image "renames" automatically
+ * just by virtue of still pointing at this same id.
+ */
+export async function renameVariantGroup(
+  id: number,
+  value1: string,
+  value2: string | null
+): Promise<void> {
+  const db = await getDB();
+
+  const normalizedValue1 = normalize(value1) ?? "original";
+  const normalizedValue2 = normalize(value2);
+
+  await db
+    .prepare(`UPDATE variant_groups SET value1 = ?, value2 = ? WHERE id = ?`)
+    .bind(normalizedValue1, normalizedValue2, id)
+    .run();
 }
 
 export async function getInventory(productId: number): Promise<Inventory[]> {
@@ -186,7 +209,7 @@ export async function createVariant(item: Omit<Inventory, "id" | "variant_group_
   const v = withVariantDefaults(item as Inventory);
   const groupId = await findOrCreateVariantGroup(v.product_id, v.value1!, v.value2);
 
-  await db.prepare(`
+  const result = await db.prepare(`
     INSERT INTO inventory (
       product_id, variant_group_id,
       variant1, value1, variant2, value2, variant3, value3,
@@ -199,6 +222,8 @@ export async function createVariant(item: Omit<Inventory, "id" | "variant_group_
     v.stock, v.priceVND, v.priceUSD, v.status
   )
   .run();
+
+  return { id: Number(result.meta.last_row_id), variant_group_id: groupId };
 }
 
 export async function updateVariant(item: Inventory) {
@@ -221,6 +246,8 @@ export async function updateVariant(item: Inventory) {
     v.id
   )
   .run();
+
+  return { id: v.id, variant_group_id: groupId };
 }
 
 /**
@@ -244,6 +271,8 @@ export async function deleteVariant(id: number): Promise<void> {
 
   if (remaining.length === 0) {
     await deleteImagesForVariantGroup(variant.variant_group_id);
+    await db.prepare(`DELETE FROM variant_groups WHERE id = ?`).bind(variant.variant_group_id).run();
+
   }
 }
 
@@ -253,6 +282,19 @@ export async function deleteInventoryForProduct(productId: number): Promise<void
 
   await db
     .prepare(`DELETE FROM inventory WHERE product_id = ?`)
+    .bind(productId)
+    .run();
+}
+
+/** Deletes every variant_groups row for a product. Only call this AFTER
+ * both its inventory rows and its images have already been cleaned up —
+ * deleteImagesForProduct needs the variant_groups rows to still exist
+ * in order to find which images belong to this product. */
+export async function deleteVariantGroupsForProduct(productId: number): Promise<void> {
+  const db = await getDB();
+
+  await db
+    .prepare(`DELETE FROM variant_groups WHERE product_id = ?`)
     .bind(productId)
     .run();
 }

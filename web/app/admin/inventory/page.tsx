@@ -8,7 +8,7 @@ type StagedImage =
   | { kind: "new"; tempId: string; file: File; previewUrl: string };
 
 type SizeRow = { id?: number; variant3: string; value3: string; stock: number; priceVND: number; priceUSD: number; status: string };
-type Group = { key: string; variant1: string; value1: string; variant2: string; value2: string; rows: SizeRow[] };
+type Group = { key: string; variant_group_id: number; variant1: string; value1: string; variant2: string; value2: string; rows: SizeRow[] };
 type NewSize = { value3: string; stock: number; priceVND: number; priceUSD: number; status: string };
 type StagedNewImage = { tempId: string; file: File; previewUrl: string };
 
@@ -20,8 +20,8 @@ export default function InventoryPage() {
   // Pickers
   const [collections, setCollections] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [collectionSlug, setCollectionSlug] = useState("");
-  const [productSlug, setProductSlug] = useState("");
+  const [collectionId, setCollectionId] = useState<number | "">("");
+  const [productId, setProductId] = useState<number | "">("");
 
   // Data
   const [variants, setVariants] = useState<any[]>([]);
@@ -57,16 +57,16 @@ export default function InventoryPage() {
   useEffect(() => { fetch("/api/admin/collections").then(r => (r.json()) as any).then(setCollections); }, []);
 
   useEffect(() => {
-    setProducts([]); setProductSlug(""); resetProductState();
-    if (!collectionSlug) return;
-    fetch(`/api/admin/products?collection=${collectionSlug}`).then(r => (r.json()) as any).then(setProducts);
-  }, [collectionSlug]);
+    setProducts([]); setProductId(""); resetProductState();
+    if (!collectionId) return;
+    fetch(`/api/admin/products?collection=${collectionId}`).then(r => (r.json()) as any).then(setProducts);
+  }, [collectionId]);
 
   useEffect(() => {
     resetProductState();
-    if (!productSlug) return;
+    if (!productId) return;
     loadVariants(); loadAllImages();
-  }, [productSlug]);
+  }, [productId]);
 
   function resetProductState() {
     setVariants([]); setAllImages([]); setShowNewGroup(false);
@@ -75,10 +75,10 @@ export default function InventoryPage() {
   }
 
   async function loadVariants() {
-    setVariants(await (await fetch(`/api/admin/inventory?product=${productSlug}`)).json());
+    setVariants(await (await fetch(`/api/admin/inventory?product=${productId}`)).json());
   }
   async function loadAllImages() {
-    setAllImages(await (await fetch(`/api/admin/images?product_slug=${productSlug}`)).json());
+    setAllImages(await (await fetch(`/api/admin/images?product_id=${productId}`)).json());
   }
 
   // Small helper — every inventory write goes through here so error handling stays in one place.
@@ -90,7 +90,7 @@ export default function InventoryPage() {
 
   function rowPayload(group: Group, row: SizeRow, value1 = group.value1, value2 = group.value2) {
     return {
-      id: row.id, collection_slug: collectionSlug, product_slug: productSlug,
+      id: row.id, product_id: productId,
       variant1: group.variant1 || "Color", value1, variant2: group.variant2, value2,
       variant3: row.variant3 || "Size", value3: row.value3,
       stock: row.stock, priceVND: row.priceVND, priceUSD: row.priceUSD, status: row.status,
@@ -101,13 +101,13 @@ export default function InventoryPage() {
     const map = new Map<string, Group>();
     for (const v of variants) {
       const key = groupKey(v.value1 ?? "", v.value2 ?? "");
-      if (!map.has(key)) map.set(key, { key, variant1: v.variant1 ?? "Color", value1: v.value1 ?? "", variant2: v.variant2 ?? "", value2: v.value2 ?? "", rows: [] });
+      if (!map.has(key)) map.set(key, { key, variant_group_id: v.variant_group_id, variant1: v.variant1 ?? "Color", value1: v.value1 ?? "", variant2: v.variant2 ?? "", value2: v.value2 ?? "", rows: [] });
       map.get(key)!.rows.push({ id: v.id, variant3: v.variant3 ?? "Size", value3: v.value3 ?? "", stock: v.stock ?? 0, priceVND: v.priceVND ?? 0, priceUSD: v.priceUSD ?? 0, status: v.status ?? "Active" });
     }
     return [...map.values()];
   }, [variants]);
 
-  const imagesForGroup = (group: Group) => allImages.filter(img => img.value1 === group.value1 && (img.value2 ?? "") === group.value2);
+  const imagesForGroup = (group: Group) => allImages.filter(img => img.variant_group_id === group.variant_group_id);
   const editingGroup = groups.find(g => g.key === editingGroupKey);
 
   function openEditModal(group: Group) {
@@ -155,8 +155,8 @@ export default function InventoryPage() {
     setDraggedIndex(null);
   }
 
-  // Uploads/deletes/reorders images for a group at its CURRENT key. Never touches value1/value2 —
-  // that's renameGroup()'s job, kept deliberately separate (Option 2).
+  // Uploads/deletes/reorders images for a group by its variant_group_id.
+  // Never touches value1/value2 — that's renameGroup()'s job, kept deliberately separate.
   async function syncGroupImages(group: Group) {
     const stagedExistingIds = staged.filter((s): s is Extract<StagedImage, { kind: "existing" }> => s.kind === "existing").map(s => s.id);
     const deleteIds = originalIds.filter(id => !stagedExistingIds.includes(id));
@@ -164,7 +164,8 @@ export default function InventoryPage() {
     const order = staged.map(s => s.kind === "existing" ? { type: "existing", id: s.id } : { type: "new", fileIndex: newFiles.findIndex(f => f.tempId === s.tempId) });
 
     const formData = new FormData();
-    formData.append("product_slug", productSlug);
+    formData.append("variant_group_id", String(group.variant_group_id));
+    formData.append("product_slug", selectedProductSlug);
     formData.append("value1", group.value1);
     if (group.value2) formData.append("value2", group.value2);
     formData.append("deleteIds", JSON.stringify(deleteIds));
@@ -189,14 +190,15 @@ export default function InventoryPage() {
     if (data.failures?.length) throw new Error(`Some image changes couldn't be completed:\n${data.failures.join("\n")}`);
   }
 
-  async function uploadNewGroupImages(value1: string, value2: string) {
+  async function uploadNewGroupImages(variantGroupId: number, value1: string, value2: string) {
     if (newGroupImages.length === 0) return;
 
     setProcessing(true);
     setProcessProgress({ done: 0, total: newGroupImages.length });
 
     const formData = new FormData();
-    formData.append("product_slug", productSlug);
+    formData.append("variant_group_id", String(variantGroupId));
+    formData.append("product_slug", selectedProductSlug);
     formData.append("value1", value1);
     if (value2) formData.append("value2", value2);
     formData.append("deleteIds", JSON.stringify([]));
@@ -244,13 +246,13 @@ export default function InventoryPage() {
       await loadVariants();
       await loadAllImages();
 
-      const fresh = (await (await fetch(`/api/admin/inventory?product=${productSlug}`)).json() as any[])
-        .filter(v => v.value1 === group.value1 && (v.value2 ?? "") === group.value2)
+      const fresh = (await (await fetch(`/api/admin/inventory?product=${productId}`)).json() as any[])
+        .filter(v => v.variant_group_id === group.variant_group_id)
         .map(v => ({ id: v.id, variant3: v.variant3 ?? "Size", value3: v.value3 ?? "", stock: v.stock ?? 0, priceVND: v.priceVND ?? 0, priceUSD: v.priceUSD ?? 0, status: v.status ?? "Active" }));
       setEditingRows(fresh);
 
-      const freshImages = (await (await fetch(`/api/admin/images?product_slug=${productSlug}`)).json() as any[])
-        .filter(img => img.value1 === group.value1 && (img.value2 ?? "") === group.value2);
+      const freshImages = (await (await fetch(`/api/admin/images?product_id=${productId}`)).json() as any[])
+        .filter(img => img.variant_group_id === group.variant_group_id);
       setStaged(freshImages.map(img => ({ kind: "existing" as const, id: img.id, url: img.url_thumb ?? img.url })));
       setOriginalIds(freshImages.map(img => img.id));
 
@@ -264,7 +266,11 @@ export default function InventoryPage() {
     }
   }
 
-  // ---- rename — isolated action, own confirm, own collision check, repoint commits last ----
+  // ---- rename — isolated action, own confirm, own collision check ----
+  // NOTE: unlike the old slug-based flow, this does NOT support merging into
+  // an existing colliding group yet — variant_groups has a UNIQUE(product_id,
+  // value1, value2) constraint, so renaming into a name that already exists
+  // will fail. The collision warning below is informational only for now.
 
   async function renameGroup() {
     if (!editingGroup) return;
@@ -277,27 +283,20 @@ export default function InventoryPage() {
     const collision = groups.find(g => g.key !== editingGroup.key && norm(g.value1) === newValue1 && norm(g.value2) === newValue2);
     const label = `${newValue1}${newValue2 ? " / " + newValue2 : ""}`;
     const confirmMsg = collision
-      ? `A group "${label}" already exists with ${collision.rows.length} size(s). Renaming will merge this group's sizes and images into it. Continue?`
+      ? `A group "${label}" already exists with ${collision.rows.length} size(s). Renaming here isn't supported yet — pick a different name, or move sizes manually.`
       : `Rename this group to "${label}"?`;
+    if (collision) { alert(confirmMsg); return; }
     if (!confirm(confirmMsg)) return;
 
     setRenaming(true);
     const group = editingGroup;
 
     try {
-      // Move the rows first — each PUT is small and safely retryable on its own.
-      for (const row of group.rows) {
-        if (!row.id) continue;
-        await inventoryReq("PUT", rowPayload(group, row, newValue1, newValue2), `Failed to move size "${row.value3}" to the new group.`);
-      }
-      // Repoint images LAST: it's one cheap, reliable call — the "commit" step (Option 1).
-      // If everything above already succeeded, this is very unlikely to be the thing that fails,
-      // and if it does fail, the rows are already safely on the new key and can be retried.
-      const repointRes = await fetch("/api/admin/images/repoint", {
+      const res = await fetch("/api/admin/images/repoint", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_slug: productSlug, old_value1: group.value1, old_value2: group.value2 || null, new_value1: newValue1, new_value2: newValue2 || null }),
+        body: JSON.stringify({ id: group.variant_group_id, value1: newValue1, value2: newValue2 || null }),
       });
-      if (!repointRes.ok) throw new Error("Sizes were moved, but images could not follow. Rename again to retry — it's safe to repeat.");
+      if (!res.ok) throw new Error("Failed to rename group.");
 
       await loadVariants();
       await loadAllImages();
@@ -372,6 +371,7 @@ export default function InventoryPage() {
   }
 
   async function createGroup() {
+    if (!productId) return;
     const value1 = newGroup.value1.trim() || DEFAULT_VALUE1;
     const value2 = newGroup.value2.trim();
     const validSizes = newSizes.filter(s => s.value3.trim());
@@ -380,12 +380,21 @@ export default function InventoryPage() {
     setCreatingGroup(true);
 
     try {
-      // Images first — if this fails, no inventory rows exist yet, so nothing is half-created.
-      await uploadNewGroupImages(value1, value2);
+      // Resolve (or create) the variant_groups row first — both images and
+      // size rows need a real variant_group_id to attach to.
+      const groupRes = await fetch("/api/admin/variant-groups", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: productId, value1, value2: value2 || null }),
+      });
+      if (!groupRes.ok) throw new Error("Failed to create variant group.");
+      const { id: variantGroupId } = await groupRes.json() as { id: number };
+
+      // Images first — if this fails, no size rows exist yet, so nothing is half-created.
+      await uploadNewGroupImages(variantGroupId, value1, value2);
 
       for (const size of validSizes) {
         await inventoryReq("POST", {
-          collection_slug: collectionSlug, product_slug: productSlug,
+          product_id: productId,
           variant1: newGroup.variant1 || "Color", value1,
           variant2: newGroup.variant2 || null, value2: newGroup.variant2 ? value2 : null,
           variant3: newGroup.variant3 || "Size", value3: size.value3,
@@ -409,8 +418,9 @@ export default function InventoryPage() {
   const selectClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
   const inputClass = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
   const labelClass = "block text-xs font-medium text-gray-500 mb-1";
-  const selectedProductName = products.find(p => p.product_slug === productSlug)?.product_name;
-  const selectedCollectionName = collections.find(c => c.collection_slug === collectionSlug)?.collection_name;
+  const selectedProductName = products.find(p => p.id === productId)?.product_name;
+  const selectedProductSlug = products.find(p => p.id === productId)?.product_slug ?? "product";
+  const selectedCollectionName = collections.find(c => c.id === collectionId)?.collection_name;
   const renameChanged = editingGroup && (norm(renameValue1) || DEFAULT_VALUE1) !== norm(editingGroup.value1 || DEFAULT_VALUE1) || (editingGroup && norm(renameValue2) !== norm(editingGroup.value2));
 
   return (
@@ -420,32 +430,32 @@ export default function InventoryPage() {
       <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Collection</label>
-          <select className={selectClass} value={collectionSlug} onChange={e => setCollectionSlug(e.target.value)}>
+          <select className={selectClass} value={collectionId} onChange={e => setCollectionId(e.target.value ? Number(e.target.value) : "")}>
             <option value="">Select collection</option>
-            {collections.map((c: any) => <option key={c.collection_slug} value={c.collection_slug}>{c.collection_name}</option>)}
+            {collections.map((c: any) => <option key={c.id} value={c.id}>{c.collection_name}</option>)}
           </select>
         </div>
         <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Product</label>
-          <select className={selectClass} value={productSlug} onChange={e => setProductSlug(e.target.value)} disabled={!collectionSlug}>
+          <select className={selectClass} value={productId} onChange={e => setProductId(e.target.value ? Number(e.target.value) : "")} disabled={!collectionId}>
             <option value="">Select product</option>
-            {products.map((p: any) => <option key={p.product_slug} value={p.product_slug}>{p.product_name}</option>)}
+            {products.map((p: any) => <option key={p.id} value={p.id}>{p.product_name}</option>)}
           </select>
         </div>
-        {productSlug && (
+        {productId && (
           <div className="w-full text-xs text-gray-400 sm:ml-auto sm:w-auto sm:text-sm">
             {selectedCollectionName}<span className="mx-1 text-gray-300">/</span><span className="font-medium text-gray-700">{selectedProductName}</span>
           </div>
         )}
       </div>
 
-      {!productSlug && (
+      {!productId && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
           Select a collection and product above to manage its variants.
         </div>
       )}
 
-      {productSlug && (
+      {productId && (
         <>
           {groups.length === 0 && (
             <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">

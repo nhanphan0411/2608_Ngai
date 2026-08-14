@@ -10,13 +10,13 @@ import {
 import type { Inventory } from "@/types/db";
 
 export async function GET(req: NextRequest) {
-  const product = req.nextUrl.searchParams.get("product");
+  const product_id = req.nextUrl.searchParams.get("product");
 
-  if (!product) {
+  if (!product_id) {
     return NextResponse.json({ error: "product required" }, { status: 400 });
   }
 
-  return NextResponse.json(await getInventoryAdmin(product));
+  return NextResponse.json(await getInventoryAdmin(Number(product_id)));
 }
 
 export async function POST(req: NextRequest) {

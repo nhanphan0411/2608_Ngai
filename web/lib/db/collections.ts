@@ -3,12 +3,13 @@ import type { Collection } from "@/types/db";
 import { queryAll } from "@/lib/d1";
 import { getProductsByCollectionAdmin, deleteProduct } from "@/lib/db/products";
 
-export async function getCollections() {
+export async function getCollection(id: number): Promise<Collection | null> {
   const db = await getDB();
 
-  return queryAll<Collection>(
-    db.prepare(`SELECT * FROM collections WHERE status='Active' ORDER BY id`)
-  );
+  return (await db
+    .prepare(`SELECT * FROM collections WHERE id = ? LIMIT 1`)
+    .bind(id)
+    .first()) as Collection | null;
 }
 
 export async function getCollectionBySlug(slug: string): Promise<Collection | null> {

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   // Existing Image Manager behavior
   if (collection) {
     return NextResponse.json(
-      await getProductsByCollectionAdmin(collection)
+      await getProductsByCollectionAdmin(Number(collection))
     );
   }
 

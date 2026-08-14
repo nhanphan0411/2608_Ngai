@@ -5,13 +5,13 @@ import { CATEGORIES } from "@/lib/categories";
 
 export default function ProductsPage() {
   const [collections, setCollections] = useState<any[]>([]);
-  const [collectionSlug, setCollectionSlug] = useState("");
+  const [collectionId, setCollectionId] = useState<number | "">("");
   const [products, setProducts] = useState<any[]>([]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const emptyForm = {
     id: undefined as number | undefined,
-    collection_slug: "",
+    collection_id: undefined as number | undefined,
     product_name: "",
     product_slug: "",
     category: "",
@@ -35,14 +35,14 @@ export default function ProductsPage() {
     setForm(emptyForm);
     setIsEditorOpen(false);
 
-    if (!collectionSlug) return;
+    if (!collectionId) return;
 
     loadProducts();
-  }, [collectionSlug]);
+  }, [collectionId]);
 
   async function loadProducts() {
     const res = await fetch(
-      `/api/admin/products?collection=${collectionSlug}`
+      `/api/admin/products?collection=${collectionId}`
     );
 
     const data = (await res.json()) as any[];
@@ -61,7 +61,7 @@ export default function ProductsPage() {
   function newProduct() {
     setForm({
       ...emptyForm,
-      collection_slug: collectionSlug,
+      collection_id: collectionId || undefined,
     });
 
     setIsEditorOpen(true);
@@ -71,7 +71,7 @@ export default function ProductsPage() {
     setIsEditorOpen(false);
     setForm({
       ...emptyForm,
-      collection_slug: collectionSlug,
+      collection_id: collectionId || undefined,
     });
   }
 
@@ -85,7 +85,7 @@ export default function ProductsPage() {
       },
       body: JSON.stringify({
         ...form,
-        collection_slug: collectionSlug,
+        collection_id: collectionId,
       }),
     });
 
@@ -126,7 +126,7 @@ export default function ProductsPage() {
   const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
   const selectedCollectionName = collections.find(
-    (c) => c.collection_slug === collectionSlug
+    (c) => c.id === collectionId
   )?.collection_name;
 
   return (
@@ -138,7 +138,7 @@ export default function ProductsPage() {
           Products
         </h1>
 
-        {collectionSlug && (
+        {collectionId && (
           <button
             onClick={newProduct}
             className="rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-green-700 sm:px-4 sm:text-sm"
@@ -156,13 +156,13 @@ export default function ProductsPage() {
 
           <select
             className={selectClass + " w-full sm:w-auto"}
-            value={collectionSlug}
-            onChange={(e) => setCollectionSlug(e.target.value)}
+            value={collectionId}
+            onChange={(e) => setCollectionId(e.target.value ? Number(e.target.value) : "")}
           >
             <option value="">Select collection</option>
 
             {collections.map((c: any) => (
-              <option key={c.collection_slug} value={c.collection_slug}>
+              <option key={c.id} value={c.id}>
                 {c.collection_name}
               </option>
             ))}
@@ -173,13 +173,13 @@ export default function ProductsPage() {
 
       {/* ================= NO COLLECTION ================= */}
 
-      {!collectionSlug && (
+      {!collectionId && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 sm:p-10">
           Select a collection above to manage its products.
         </div>
       )}
 
-      {collectionSlug && (
+      {collectionId && (
         <>
           {/* ================= PRODUCTS ================= */}
 
@@ -211,9 +211,9 @@ export default function ProductsPage() {
                       {products.map((p: any) => {
                         const cats = p.category
                           ? p.category
-                              .split(",")
-                              .map((c: string) => c.trim())
-                              .filter(Boolean)
+                            .split(",")
+                            .map((c: string) => c.trim())
+                            .filter(Boolean)
                           : [];
 
                         return (
@@ -260,11 +260,10 @@ export default function ProductsPage() {
 
                             <td className="p-3">
                               <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                  p.status === "Active"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-500"
-                                }`}
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${p.status === "Active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-500"
+                                  }`}
                               >
                                 {p.status}
                               </span>
@@ -300,9 +299,9 @@ export default function ProductsPage() {
                   {products.map((p: any) => {
                     const cats = p.category
                       ? p.category
-                          .split(",")
-                          .map((c: string) => c.trim())
-                          .filter(Boolean)
+                        .split(",")
+                        .map((c: string) => c.trim())
+                        .filter(Boolean)
                       : [];
 
                     return (
@@ -315,11 +314,10 @@ export default function ProductsPage() {
                               </h3>
 
                               <span
-                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                  p.status === "Active"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-500"
-                                }`}
+                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${p.status === "Active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-500"
+                                  }`}
                               >
                                 {p.status}
                               </span>
@@ -350,17 +348,17 @@ export default function ProductsPage() {
                         <div className="mt-3 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3">
                           <div className="min-w-0">
                             {cats.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1">
-                            {cats.map((c: string) => (
-                              <span
-                                key={c}
-                                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-                              >
-                                {c}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                              <div className="mt-3 flex flex-wrap gap-1">
+                                {cats.map((c: string) => (
+                                  <span
+                                    key={c}
+                                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                                  >
+                                    {c}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="text-[10px] uppercase tracking-wide text-gray-400">
@@ -484,9 +482,9 @@ export default function ProductsPage() {
                   {CATEGORIES.map((cat) => {
                     const selected = form.category
                       ? form.category
-                          .split(",")
-                          .map((c) => c.trim())
-                          .includes(cat.name)
+                        .split(",")
+                        .map((c) => c.trim())
+                        .includes(cat.name)
                       : false;
 
                     return (
@@ -500,16 +498,16 @@ export default function ProductsPage() {
                           onChange={(e) => {
                             const current = form.category
                               ? form.category
-                                  .split(",")
-                                  .map((c) => c.trim())
-                                  .filter(Boolean)
+                                .split(",")
+                                .map((c) => c.trim())
+                                .filter(Boolean)
                               : [];
 
                             const next = e.target.checked
                               ? [...current, cat.name]
                               : current.filter(
-                                  (c) => c !== cat.name
-                                );
+                                (c) => c !== cat.name
+                              );
 
                             setForm({
                               ...form,

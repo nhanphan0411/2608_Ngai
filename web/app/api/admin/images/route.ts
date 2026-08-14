@@ -1,35 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getImages, getAllImagesForProduct, insertImage } from "@/lib/db/images";
 import { uploadImage } from "@/engine/cloudfare/r2";
-import { normalize } from "@/lib/db/inventory";
 import { validateImageFile } from "@/lib/imageValidation";
 
 export async function GET(req: NextRequest) {
-  const productSlug = req.nextUrl.searchParams.get("product_slug");
-  const value1 = req.nextUrl.searchParams.get("value1");
-  const value2 = req.nextUrl.searchParams.get("value2") || undefined;
+  const variantGroupId = req.nextUrl.searchParams.get("variant_group_id");
+  const productId = req.nextUrl.searchParams.get("product_id");
 
-  if (!productSlug) {
-    return NextResponse.json({ error: "product_slug required" }, { status: 400 });
+  if (variantGroupId) {
+    return NextResponse.json(await getImages(Number(variantGroupId)));
   }
 
-  if (!value1) {
-    return NextResponse.json(await getAllImagesForProduct(productSlug));
+  if (productId) {
+    return NextResponse.json(await getAllImagesForProduct(Number(productId)));
   }
 
-  return NextResponse.json(await getImages(productSlug, value1, value2));
+  return NextResponse.json(
+    { error: "variant_group_id or product_id required" },
+    { status: 400 }
+  );
 }
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const files = formData.getAll("file") as File[];
-  const productSlug = formData.get("product_slug") as string | null;
-  const value1 = normalize(formData.get("value1") as string | null);
-  const value2 = normalize(formData.get("value2") as string | null);
+  const variantGroupId = Number(formData.get("variant_group_id"));
 
-  if (files.length === 0 || !productSlug || !value1) {
+  // product_slug/value1/value2 are only used to build a readable R2 folder
+  // path — they are NOT used for any DB lookup. The real relationship is
+  // variant_group_id above.
+  const productSlug = (formData.get("product_slug") as string | null) ?? "product";
+  const value1 = (formData.get("value1") as string | null) ?? "variant";
+  const value2 = (formData.get("value2") as string | null) || null;
+
+  if (files.length === 0 || !variantGroupId) {
     return NextResponse.json(
-      { error: "file(s), product_slug, value1 required" },
+      { error: "file(s) and variant_group_id required" },
       { status: 400 }
     );
   }
@@ -56,15 +62,12 @@ export async function POST(req: NextRequest) {
 
     const url = await uploadImage(r2Key, buffer, file.type);
     const id = await insertImage(
-      productSlug,
-      value1,
-      value2,
+      variantGroupId,
       { thumb: r2Key, mid: r2Key, large: r2Key },
       { thumb: url, mid: url, large: url }
     );
 
     uploaded.push({ id, url, r2_key: r2Key });
-
   }
 
   return NextResponse.json(uploaded);

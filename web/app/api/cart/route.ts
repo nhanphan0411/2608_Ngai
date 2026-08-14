@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getVariantById } from "@/lib/db/inventory";
-import { getProduct } from "@/lib/db/products";
+import { getProductById } from "@/lib/db/products";
 import type { CartItem, Inventory, Product } from "@/types/db";
 import { getFirstImage } from "@/lib/db/images";
 
@@ -49,13 +49,9 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      const product = await getProduct(variant.product_id);
+      const product = await getProductById(variant.product_id);
 
-      const image = await getFirstImage(
-        variant.product_slug,
-        variant.value1,
-        variant.value2
-      );
+      const image = await getFirstImage(variant.variant_group_id);
 
       const price = isUSD && variant.priceUSD ? variant.priceUSD : (variant.priceVND ?? 0);
 
