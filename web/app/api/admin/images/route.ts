@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getImages, getAllImagesForProduct, insertImage } from "@/lib/db/images";
 import { uploadImage } from "@/engine/cloudfare/r2";
+import { normalize } from "@/lib/db/inventory";
 import { validateImageFile } from "@/lib/imageValidation";
 
 export async function GET(req: NextRequest) {
@@ -23,8 +24,8 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const files = formData.getAll("file") as File[];
   const productSlug = formData.get("product_slug") as string | null;
-  const value1 = formData.get("value1") as string | null;
-  const value2 = (formData.get("value2") as string | null) || null;
+  const value1 = normalize(formData.get("value1") as string | null);
+  const value2 = normalize(formData.get("value2") as string | null);
 
   if (files.length === 0 || !productSlug || !value1) {
     return NextResponse.json(

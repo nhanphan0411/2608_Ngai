@@ -255,21 +255,6 @@ export default function ProductOptions({
                     <p className="text-sm text-gray-600">{product.description}</p>
                 )}
 
-                {sizeOption && renderOptionGroup(sizeOption)}
-
-                {/* TODO: wire up real shipping data once available */}
-                <p className="text-xs text-gray-500">
-                    Free shipping · Ships within 2–3 business days
-                </p>
-
-                {otherOptions.map((option) => {
-                    if (/color/i.test(option.name) && option.values.length === 1) {
-                        return null;
-                    }
-
-                    return renderOptionGroup(option);
-                })}
-
                 <div className="mt-2 w-full">
                     {selectedVariant ? (
                         <>
@@ -296,6 +281,21 @@ export default function ProductOptions({
                         <p className="text-sm">Please select all options.</p>
                     )}
                 </div>
+
+                {sizeOption && renderOptionGroup(sizeOption)}
+
+                {/* TODO: wire up real shipping data once available */}
+                <p className="text-xs text-gray-500">
+                    Free shipping · Ships within 2–3 business days
+                </p>
+
+                {otherOptions.map((option) => {
+                    if (/color/i.test(option.name) && option.values.length === 1) {
+                        return null;
+                    }
+
+                    return renderOptionGroup(option);
+                })}
             </div>
         </div>
     );

@@ -54,8 +54,20 @@ export async function createCollection(collection: Omit<Collection, "id">) {
   .run();
 }
 
+/**
+ * Updates a collection. If the slug changed, cascades that rename to
+ * products.collection_slug (read by the public/admin product-by-collection
+ * queries) and inventory.collection_slug (a denormalized copy, unread
+ * today but kept truthful) — otherwise both go stale and silently stop
+ * matching the renamed collection.
+ */
 export async function updateCollection(collection: Collection) {
   const db = await getDB();
+
+  const existing = (await db
+    .prepare(`SELECT collection_slug FROM collections WHERE id = ?`)
+    .bind(collection.id)
+    .first()) as { collection_slug: string } | null;
 
   await db.prepare(`
     UPDATE collections
@@ -70,6 +82,18 @@ export async function updateCollection(collection: Collection) {
     collection.id
   )
   .run();
+
+  if (existing && existing.collection_slug !== collection.collection_slug) {
+    await db
+      .prepare(`UPDATE products SET collection_slug = ? WHERE collection_slug = ?`)
+      .bind(collection.collection_slug, existing.collection_slug)
+      .run();
+
+    await db
+      .prepare(`UPDATE inventory SET collection_slug = ? WHERE collection_slug = ?`)
+      .bind(collection.collection_slug, existing.collection_slug)
+      .run();
+  }
 }
 
 /**

@@ -8,13 +8,14 @@ import {
 } from "@/lib/db/images";
 import { uploadImage } from "@/engine/cloudfare/r2";
 import { validateImageFile } from "@/lib/imageValidation";
+import { normalize } from "@/lib/db/inventory";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
 
   const productSlug = formData.get("product_slug") as string;
-  const value1 = formData.get("value1") as string;
-  const value2 = (formData.get("value2") as string | null) || null;
+  const value1 = normalize(formData.get("value1") as string) as string;
+  const value2 = normalize(formData.get("value2") as string | null);
   const deleteIds: number[] = JSON.parse(formData.get("deleteIds") as string);
   const order: any[] = JSON.parse(formData.get("order") as string);
 

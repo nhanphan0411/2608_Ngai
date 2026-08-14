@@ -10,7 +10,7 @@ import { deleteImagesForVariantGroup } from "@/lib/db/images";
  * customer reads verbatim, and are normalized (if at all) at their own
  * db layer (lib/db/products.ts / lib/db/collections.ts), not here.
  */
-function normalize(v: string | null | undefined): string | null {
+export function normalize(v: string | null | undefined): string | null {
   if (v == null) return null;
   const trimmed = v.trim().toLowerCase();
   return trimmed === "" ? null : trimmed;

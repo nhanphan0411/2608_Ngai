@@ -2,6 +2,7 @@ import { getDB, queryAll, queryFirst } from "@/lib/d1";
 import { deleteImagesSafe } from "@/engine/cloudfare/r2";
 import type { Image } from "@/types/db";
 import { renameImage } from "@/engine/cloudfare/r2";
+import { normalize } from "@/lib/db/inventory";
 
 /**
  * Renames the images tied to one value1/value2 group over to a new
@@ -96,6 +97,8 @@ export async function insertImage(
   urls: { thumb: string; mid: string; large: string }
 ): Promise<number> {
   const db = await getDB();
+  value1 = normalize(value1) ?? value1;
+  value2 = normalize(value2);
 
   const maxOrder = await queryFirst<{ max: number }>(
     db
