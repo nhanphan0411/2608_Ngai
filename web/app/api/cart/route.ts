@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      const product = await getProduct(variant.product_slug);
+      const product = await getProduct(variant.product_id);
 
       const image = await getFirstImage(
         variant.product_slug,

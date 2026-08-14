@@ -71,19 +71,9 @@ export default function ProductCard({
     )
   );
 
-  const activeValue1 = variants[0]?.variant1
-    ? selected[variants[0].variant1]
-    : undefined;
-
-  const activeValue2 = variants[0]?.variant2
-    ? selected[variants[0].variant2]
-    : undefined;
-
-  const galleryImages = images.filter((img) => {
-    if (img.value1 !== activeValue1) return false;
-    if (img.value2 && img.value2 !== activeValue2) return false;
-    return true;
-  });
+  const galleryImages = images.filter(
+    (img) => img.variant_group_id === selectedVariant?.variant_group_id
+  );
 
   const currentImage = galleryImages[imgIndex] ?? galleryImages[0];
 

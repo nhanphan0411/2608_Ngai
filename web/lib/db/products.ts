@@ -1,7 +1,8 @@
 import { getDB } from "@/lib/d1";
 import { Product } from "@/types/db";
-import { deleteInventoryForProduct, repointInventoryToSlug } from "@/lib/db/inventory";
-import { deleteImagesForProduct, repointImagesToSlug } from "@/lib/db/images";
+import { deleteInventoryForProduct } from "@/lib/db/inventory";
+import { deleteImagesForProduct } from "@/lib/db/images";
+
 const PAGE_SIZE = 20;
 
 export async function getAllProductsPaginated(page: number): Promise<{ products: Product[]; total: number }> {
@@ -24,7 +25,7 @@ export async function getAllProductsPaginated(page: number): Promise<{ products:
 }
 
 export async function getProductsByCollectionPaginated(
-  collection: string,
+  collectionId: number,
   page: number
 ): Promise<{ products: Product[]; total: number }> {
   const db = await getDB();
@@ -33,15 +34,15 @@ export async function getProductsByCollectionPaginated(
   const { results } = await db
     .prepare(`
       SELECT * FROM products
-      WHERE collection_slug = ? AND status = 'Active'
+      WHERE collection_id = ? AND status = 'Active'
       ORDER BY id LIMIT ? OFFSET ?
     `)
-    .bind(collection, PAGE_SIZE, offset)
+    .bind(collectionId, PAGE_SIZE, offset)
     .all();
 
   const countRow = await db
-    .prepare(`SELECT COUNT(*) as count FROM products WHERE collection_slug = ? AND status = 'Active'`)
-    .bind(collection)
+    .prepare(`SELECT COUNT(*) as count FROM products WHERE collection_id = ? AND status = 'Active'`)
+    .bind(collectionId)
     .first<{ count: number }>();
 
   return {
@@ -92,21 +93,26 @@ export async function getProductsByCategoryPaginated(
 
 export const PRODUCTS_PAGE_SIZE = PAGE_SIZE;
 
-export async function getProductsByCollection(collection: string): Promise<Product[]> {
+export async function getProductsByCollection(collectionId: number): Promise<Product[]> {
   const db = await getDB();
 
   const { results } = await db
     .prepare(`
       SELECT * FROM products
-      WHERE collection_slug = ? AND status = 'Active'
+      WHERE collection_id = ? AND status = 'Active'
       ORDER BY id
     `)
-    .bind(collection)
+    .bind(collectionId)
     .all();
 
   return results as unknown as Product[];
 }
 
+/**
+ * Slug -> row lookup. This is now the ONLY place in the codebase where
+ * a URL slug touches SQL directly — every downstream call (inventory,
+ * images, cascades) uses product.id from here on, not the slug.
+ */
 export async function getProduct(slug: string): Promise<Product | null> {
   const db = await getDB();
 
@@ -135,12 +141,12 @@ export async function getAllProducts(): Promise<Product[]> {
   return results as unknown as Product[];
 }
 
-export async function getProductsByCollectionAdmin(collection: string): Promise<Product[]> {
+export async function getProductsByCollectionAdmin(collectionId: number): Promise<Product[]> {
   const db = await getDB();
 
   const { results } = await db
-    .prepare(`SELECT * FROM products WHERE collection_slug = ? ORDER BY id`)
-    .bind(collection)
+    .prepare(`SELECT * FROM products WHERE collection_id = ? ORDER BY id`)
+    .bind(collectionId)
     .all();
 
   return results as unknown as Product[];
@@ -153,14 +159,14 @@ export async function saveProducts(products: Product[]): Promise<void> {
 
   const stmt = db.prepare(`
     INSERT INTO products (
-      id, collection_slug, product_name, product_slug,
+      id, collection_id, product_name, product_slug,
       category, status, description, shipping, sizeGuide, notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const batch = products.map((p) =>
     stmt.bind(
-      p.id, p.collection_slug, p.product_name, p.product_slug,
+      p.id, p.collection_id, p.product_name, p.product_slug,
       p.category, p.status, p.description, p.shipping, p.sizeGuide, p.notes
     )
   );
@@ -181,12 +187,12 @@ export async function createProduct(product: Omit<Product, "id">) {
 
   await db.prepare(`
     INSERT INTO products (
-      collection_slug, product_name, product_slug,
+      collection_id, product_name, product_slug,
       category, status, description, shipping, sizeGuide, notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   .bind(
-    product.collection_slug, product.product_name, product.product_slug,
+    product.collection_id, product.product_name, product.product_slug,
     product.category, product.status, product.description,
     product.shipping, product.sizeGuide, product.notes
   )
@@ -194,38 +200,29 @@ export async function createProduct(product: Omit<Product, "id">) {
 }
 
 /**
- * Updates a product. If the slug changed, cascades that rename to
- * every inventory row and image row for it — otherwise they'd silently
- * stop matching and become invisible orphans.
+ * Updates a product. No more slug-cascade needed — inventory and images
+ * reference product_id, so renaming product_slug here doesn't touch them
+ * at all. product_slug can still change freely; it's just a display/URL
+ * value now, not a join key.
  */
 export async function updateProduct(product: Product) {
   const db = await getDB();
 
-  const existing = (await db
-    .prepare(`SELECT product_slug FROM products WHERE id = ?`)
-    .bind(product.id)
-    .first()) as { product_slug: string } | null;
-
   await db.prepare(`
     UPDATE products
     SET
-      collection_slug = ?, product_name = ?, product_slug = ?,
+      collection_id = ?, product_name = ?, product_slug = ?,
       category = ?, status = ?, description = ?,
       shipping = ?, sizeGuide = ?, notes = ?
     WHERE id = ?
   `)
   .bind(
-    product.collection_slug, product.product_name, product.product_slug,
+    product.collection_id, product.product_name, product.product_slug,
     product.category, product.status, product.description,
     product.shipping, product.sizeGuide, product.notes,
     product.id
   )
   .run();
-
-  if (existing && existing.product_slug !== product.product_slug) {
-    await repointInventoryToSlug(existing.product_slug, product.product_slug);
-    await repointImagesToSlug(existing.product_slug, product.product_slug);
-  }
 }
 
 /**
@@ -236,17 +233,10 @@ export async function updateProduct(product: Product) {
 export async function deleteProduct(id: number) {
   const db = await getDB();
 
-  const existing = (await db
-    .prepare(`SELECT product_slug FROM products WHERE id = ?`)
-    .bind(id)
-    .first()) as { product_slug: string } | null;
-
   await db.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
 
-  if (existing) {
-    await deleteInventoryForProduct(existing.product_slug);
-    await deleteImagesForProduct(existing.product_slug);
-  }
+  await deleteInventoryForProduct(id);
+  await deleteImagesForProduct(id);
 }
 
 export async function getProductsByCategory(categoryName: string): Promise<Product[]> {

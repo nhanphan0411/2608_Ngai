@@ -40,8 +40,8 @@ export default async function CategoryPage({
   const cards = await Promise.all(
     products.map(async (product) => ({
       product,
-      variants: await getInventory(product.product_slug),
-      images: await getAllImagesForProduct(product.product_slug),
+      variants: await getInventory(product.id),
+      images: await getAllImagesForProduct(product.id),
     }))
   );
 

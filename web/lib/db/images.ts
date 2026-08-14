@@ -1,78 +1,14 @@
 import { getDB, queryAll, queryFirst } from "@/lib/d1";
 import { deleteImagesSafe } from "@/engine/cloudfare/r2";
 import type { Image } from "@/types/db";
-import { renameImage } from "@/engine/cloudfare/r2";
-import { normalize } from "@/lib/db/inventory";
 
 /**
- * Renames the images tied to one value1/value2 group over to a new
- * value1/value2 group — used when an admin edits a variant's own
- * value1/value2 and expects its images to follow, not vanish.
- *
- * Caveat: if multiple inventory rows currently share the OLD group
- * (e.g. same color, different sizes), this moves ALL of their shared
- * images to the NEW group too. That's usually what's wanted (renaming
- * a shared attribute), but it means editing one row can affect what
- * other rows see if they still reference the old value.
+ * Images are keyed by variant_group_id only. R2 key text (product slug,
+ * value1, value2) is built by the caller (upload route) BEFORE calling
+ * this — this file no longer stores or needs that text, only the id.
  */
-export async function repointImagesForVariantGroup(
-  productSlug: string,
-  oldValue1: string,
-  oldValue2: string | null,
-  newValue1: string,
-  newValue2: string | null
-): Promise<void> {
-  if (oldValue1 === newValue1 && (oldValue2 ?? null) === (newValue2 ?? null)) {
-    return;
-  }
 
-  const images = await getImages(productSlug, oldValue1, oldValue2 ?? undefined);
-  if (images.length === 0) return;
-
-  const db = await getDB();
-
-  const newBase = newValue2
-    ? `Products/${productSlug}/${newValue1}/${newValue2}`
-    : `Products/${productSlug}/${newValue1}`;
-
-  for (const img of images) {
-    const nameThumb = img.r2_key_thumb.split("/").pop();
-    const nameMid = img.r2_key_mid.split("/").pop();
-    const nameLarge = img.r2_key_large.split("/").pop();
-
-    const newKeyThumb = `${newBase}/${nameThumb}`;
-    const newKeyMid = `${newBase}/${nameMid}`;
-    const newKeyLarge = `${newBase}/${nameLarge}`;
-
-    const [urlThumb, urlMid, urlLarge] = await Promise.all([
-      renameImage(img.r2_key_thumb, newKeyThumb),
-      renameImage(img.r2_key_mid, newKeyMid),
-      renameImage(img.r2_key_large, newKeyLarge),
-    ]);
-
-    await db
-      .prepare(`
-        UPDATE images
-        SET value1 = ?, value2 = ?,
-            r2_key_thumb = ?, r2_key_mid = ?, r2_key_large = ?,
-            url_thumb = ?, url_mid = ?, url_large = ?
-        WHERE id = ?
-      `)
-      .bind(
-        newValue1, newValue2,
-        newKeyThumb, newKeyMid, newKeyLarge,
-        urlThumb, urlMid, urlLarge,
-        img.id
-      )
-      .run();
-  }
-}
-
-export async function getImages(
-  productSlug: string,
-  value1: string,
-  value2?: string
-): Promise<Image[]> {
+export async function getImages(variantGroupId: number): Promise<Image[]> {
   const db = await getDB();
 
   return queryAll<Image>(
@@ -80,52 +16,42 @@ export async function getImages(
       .prepare(`
         SELECT *
         FROM images
-        WHERE product_slug = ?
-          AND value1 = ?
-          AND IFNULL(value2,'') = IFNULL(?, '')
+        WHERE variant_group_id = ?
         ORDER BY sort_order ASC, id ASC
       `)
-      .bind(productSlug, value1, value2 ?? null)
+      .bind(variantGroupId)
   );
 }
 
 export async function insertImage(
-  productSlug: string,
-  value1: string,
-  value2: string | null,
+  variantGroupId: number,
   keys: { thumb: string; mid: string; large: string },
   urls: { thumb: string; mid: string; large: string }
 ): Promise<number> {
   const db = await getDB();
-  value1 = normalize(value1) ?? value1;
-  value2 = normalize(value2);
 
   const maxOrder = await queryFirst<{ max: number }>(
     db
       .prepare(`
         SELECT COALESCE(MAX(sort_order), 0) AS max
         FROM images
-        WHERE product_slug = ?
-          AND value1 = ?
-          AND IFNULL(value2,'') = IFNULL(?, '')
+        WHERE variant_group_id = ?
       `)
-      .bind(productSlug, value1, value2 ?? null)
+      .bind(variantGroupId)
   );
 
   const result = await db
     .prepare(`
       INSERT INTO images (
-        product_slug, value1, value2,
+        variant_group_id,
         r2_key_thumb, r2_key_mid, r2_key_large,
         url_thumb, url_mid, url_large,
         sort_order
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .bind(
-      productSlug,
-      value1,
-      value2 ?? null,
+      variantGroupId,
       keys.thumb,
       keys.mid,
       keys.large,
@@ -183,41 +109,35 @@ export async function updateSortOrders(
   }
 }
 
-export async function getFirstImage(
-  productSlug: string,
-  value1: string | null,
-  value2?: string | null
-): Promise<Image | null> {
+export async function getFirstImage(variantGroupId: number): Promise<Image | null> {
   const db = await getDB();
 
   return (await db
     .prepare(`
       SELECT *
       FROM images
-      WHERE product_slug = ?
-        AND value1 = ?
-        AND IFNULL(value2,'') = IFNULL(?, '')
+      WHERE variant_group_id = ?
       ORDER BY sort_order ASC, id ASC
       LIMIT 1
     `)
-    .bind(productSlug, value1, value2 ?? null)
+    .bind(variantGroupId)
     .first()) as Image | null;
 }
 
-export async function getAllImagesForProduct(
-  productSlug: string
-): Promise<Image[]> {
+/** Gets every image across every variant group belonging to a product. */
+export async function getAllImagesForProduct(productId: number): Promise<Image[]> {
   const db = await getDB();
 
   return queryAll<Image>(
     db
       .prepare(`
-        SELECT *
+        SELECT images.*
         FROM images
-        WHERE product_slug = ?
-        ORDER BY sort_order ASC, id ASC
+        JOIN variant_groups ON variant_groups.id = images.variant_group_id
+        WHERE variant_groups.product_id = ?
+        ORDER BY images.sort_order ASC, images.id ASC
       `)
-      .bind(productSlug)
+      .bind(productId)
   );
 }
 
@@ -227,53 +147,35 @@ function allKeys(images: Image[]): string[] {
   );
 }
 
-export async function deleteImagesForProduct(productSlug: string): Promise<void> {
+export async function deleteImagesForProduct(productId: number): Promise<void> {
   const db = await getDB();
 
-  const images = await getAllImagesForProduct(productSlug);
+  const images = await getAllImagesForProduct(productId);
   if (images.length === 0) return;
-
-  await db
-    .prepare(`DELETE FROM images WHERE product_slug = ?`)
-    .bind(productSlug)
-    .run();
-
-  await deleteImagesSafe(allKeys(images));
-}
-
-export async function deleteImagesForVariantGroup(
-  productSlug: string,
-  value1: string,
-  value2: string | null
-): Promise<void> {
-  const images = await getImages(productSlug, value1, value2 ?? undefined);
-  if (images.length === 0) return;
-
-  const db = await getDB();
 
   await db
     .prepare(`
       DELETE FROM images
-      WHERE product_slug = ?
-        AND value1 = ?
-        AND IFNULL(value2,'') = IFNULL(?, '')
+      WHERE variant_group_id IN (
+        SELECT id FROM variant_groups WHERE product_id = ?
+      )
     `)
-    .bind(productSlug, value1, value2 ?? null)
+    .bind(productId)
     .run();
 
   await deleteImagesSafe(allKeys(images));
 }
 
-export async function repointImagesToSlug(
-  oldProductSlug: string,
-  newProductSlug: string
-): Promise<void> {
-  if (oldProductSlug === newProductSlug) return;
-
+export async function deleteImagesForVariantGroup(variantGroupId: number): Promise<void> {
   const db = await getDB();
 
+  const images = await getImages(variantGroupId);
+  if (images.length === 0) return;
+
   await db
-    .prepare(`UPDATE images SET product_slug = ? WHERE product_slug = ?`)
-    .bind(newProductSlug, oldProductSlug)
+    .prepare(`DELETE FROM images WHERE variant_group_id = ?`)
+    .bind(variantGroupId)
     .run();
+
+  await deleteImagesSafe(allKeys(images));
 }

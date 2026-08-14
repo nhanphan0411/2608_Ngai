@@ -8,16 +8,11 @@ export interface Collection {
 
 export interface Product {
   id: number;
-
-  collection_slug: string;
-
+  collection_id: number;
   product_name: string;
   product_slug: string;
-
   category: string | null;
-
   status: string;
-
   description: string | null;
   shipping: string | null;
   sizeGuide: string | null;
@@ -26,9 +21,8 @@ export interface Product {
 
 export interface Inventory {
   id: number;
-
-  collection_slug: string;
-  product_slug: string;
+  product_id: number;
+  variant_group_id: number;
 
   variant1: string | null;
   value1: string | null;
@@ -96,9 +90,7 @@ export interface NewOrder {
 
 export interface Image {
   id: number;
-  product_slug: string;
-  value1: string | null;
-  value2: string | null;
+  variant_group_id: number;   // was product_id, value1, value2
   r2_key_thumb: string;
   r2_key_mid: string;
   r2_key_large: string;
@@ -119,4 +111,11 @@ export interface Settings {
   shipping_fee_vnd: number;
   shipping_fee_usd: number;
   payment_methods: string;
+}
+
+export interface VariantGroup {
+  id: number;
+  product_id: number;
+  value1: string;
+  value2: string | null;
 }

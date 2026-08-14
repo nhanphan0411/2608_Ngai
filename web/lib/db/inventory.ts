@@ -5,10 +5,7 @@ import { deleteImagesForVariantGroup } from "@/lib/db/images";
 /**
  * Strips whitespace and lowercases a variant field. Applied to every
  * variant1/value1/variant2/value2/variant3/value3 write so "Red " and "red"
- * can never both exist as separate option values. Does NOT touch
- * product_name/description/collection_name/etc — those are free text the
- * customer reads verbatim, and are normalized (if at all) at their own
- * db layer (lib/db/products.ts / lib/db/collections.ts), not here.
+ * can never both exist as separate option values.
  */
 export function normalize(v: string | null | undefined): string | null {
   if (v == null) return null;
@@ -21,13 +18,9 @@ export function normalize(v: string | null | undefined): string | null {
  * variant1/value1 to "color"/"original" and variant3/value3 to
  * "size"/"one-size" when left blank. variant2/value2 stay optional (null)
  * on purpose — there's no third mandatory axis in this catalog.
- *
- * This is the single choke point all variant writes (createVariant,
- * updateVariant, saveInventory) pass through, so the defaulting and
- * normalization rules only need to live in one place.
  */
 function withVariantDefaults<
-  T extends {
+T extends {
     variant1: string | null; value1: string | null;
     variant2: string | null; value2: string | null;
     variant3: string | null; value3: string | null;
@@ -44,27 +37,58 @@ function withVariantDefaults<
   };
 }
 
-export async function getInventory(productSlug: string): Promise<Inventory[]> {
+/**
+ * Finds the variant_groups row for (product_id, value1, value2), creating
+ * it if it doesn't exist yet. This is the single choke point that turns
+ * "color=red" into a real group id — every insert/update goes through
+ * this instead of ever writing value1/value2 onto images directly.
+ */
+async function findOrCreateVariantGroup(
+  productId: number,
+  value1: string,
+  value2: string | null
+): Promise<number> {
+  const db = await getDB();
+
+  const existing = (await db
+    .prepare(`
+      SELECT id FROM variant_groups
+      WHERE product_id = ? AND value1 = ? AND IFNULL(value2,'') = IFNULL(?, '')
+    `)
+    .bind(productId, value1, value2 ?? null)
+    .first()) as { id: number } | null;
+
+  if (existing) return existing.id;
+
+  const result = await db
+    .prepare(`INSERT INTO variant_groups (product_id, value1, value2) VALUES (?, ?, ?)`)
+    .bind(productId, value1, value2 ?? null)
+    .run();
+
+  return Number(result.meta.last_row_id);
+}
+
+export async function getInventory(productId: number): Promise<Inventory[]> {
   const db = await getDB();
 
   const { results } = await db
     .prepare(`
       SELECT * FROM inventory
-      WHERE product_slug = ? AND status = 'Active'
+      WHERE product_id = ? AND status = 'Active'
       ORDER BY id
     `)
-    .bind(productSlug)
+    .bind(productId)
     .all();
 
   return results as unknown as Inventory[];
 }
 
-export async function getInventoryAdmin(productSlug: string): Promise<Inventory[]> {
+export async function getInventoryAdmin(productId: number): Promise<Inventory[]> {
   const db = await getDB();
 
   const { results } = await db
-    .prepare(`SELECT * FROM inventory WHERE product_slug = ? ORDER BY id`)
-    .bind(productSlug)
+    .prepare(`SELECT * FROM inventory WHERE product_id = ? ORDER BY id`)
+    .bind(productId)
     .all();
 
   return results as unknown as Inventory[];
@@ -96,24 +120,24 @@ async function getVariantByIdAnyStatus(id: number): Promise<Inventory | null> {
 }
 
 export async function getValue1Options(
-  productSlug: string
+  productId: number
 ): Promise<{ value1: string }[]> {
   const db = await getDB();
 
   const { results } = await db
     .prepare(`
       SELECT DISTINCT value1 FROM inventory
-      WHERE product_slug = ?
+      WHERE product_id = ?
       ORDER BY value1
     `)
-    .bind(productSlug)
+    .bind(productId)
     .all();
 
   return results as unknown as { value1: string }[];
 }
 
 export async function getValue2Options(
-  productSlug: string,
+  productId: number,
   value1: string
 ): Promise<{ value2: string }[]> {
   const db = await getDB();
@@ -121,10 +145,10 @@ export async function getValue2Options(
   const { results } = await db
     .prepare(`
       SELECT DISTINCT value2 FROM inventory
-      WHERE product_slug = ? AND value1 = ? AND value2 IS NOT NULL AND value2 != ''
+      WHERE product_id = ? AND value1 = ? AND value2 IS NOT NULL AND value2 != ''
       ORDER BY value2
     `)
-    .bind(productSlug, value1)
+    .bind(productId, value1)
     .all();
 
   return results as unknown as { value2: string }[];
@@ -137,37 +161,40 @@ export async function saveInventory(inventory: Inventory[]): Promise<void> {
 
   const stmt = db.prepare(`
     INSERT INTO inventory (
-      id, collection_slug, product_slug,
+      id, product_id, variant_group_id,
       variant1, value1, variant2, value2, variant3, value3,
       stock, priceVND, priceUSD, status
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const batch = inventory.map((item) => {
+  const batch = [];
+  for (const item of inventory) {
     const v = withVariantDefaults(item);
-    return stmt.bind(
-      v.id, v.collection_slug, v.product_slug,
+    const groupId = await findOrCreateVariantGroup(v.product_id, v.value1!, v.value2);
+    batch.push(stmt.bind(
+      v.id, v.product_id, groupId,
       v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
       v.stock, v.priceVND, v.priceUSD, v.status
-    );
-  });
+    ));
+  }
 
   if (batch.length > 0) await db.batch(batch);
 }
 
-export async function createVariant(item: Omit<Inventory, "id">) {
+export async function createVariant(item: Omit<Inventory, "id" | "variant_group_id">) {
   const db = await getDB();
-  const v = withVariantDefaults(item);
+  const v = withVariantDefaults(item as Inventory);
+  const groupId = await findOrCreateVariantGroup(v.product_id, v.value1!, v.value2);
 
   await db.prepare(`
     INSERT INTO inventory (
-      collection_slug, product_slug,
+      product_id, variant_group_id,
       variant1, value1, variant2, value2, variant3, value3,
       stock, priceVND, priceUSD, status
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   .bind(
-    v.collection_slug, v.product_slug,
+    v.product_id, groupId,
     v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
     v.stock, v.priceVND, v.priceUSD, v.status
   )
@@ -177,17 +204,18 @@ export async function createVariant(item: Omit<Inventory, "id">) {
 export async function updateVariant(item: Inventory) {
   const db = await getDB();
   const v = withVariantDefaults(item);
+  const groupId = await findOrCreateVariantGroup(v.product_id, v.value1!, v.value2);
 
   await db.prepare(`
     UPDATE inventory
     SET
-      collection_slug = ?, product_slug = ?,
+      product_id = ?, variant_group_id = ?,
       variant1 = ?, value1 = ?, variant2 = ?, value2 = ?, variant3 = ?, value3 = ?,
       stock = ?, priceVND = ?, priceUSD = ?, status = ?
     WHERE id = ?
   `)
   .bind(
-    v.collection_slug, v.product_slug,
+    v.product_id, groupId,
     v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
     v.stock, v.priceVND, v.priceUSD, v.status,
     v.id
@@ -196,10 +224,10 @@ export async function updateVariant(item: Inventory) {
 }
 
 /**
- * Deletes a variant, then checks whether any other variant for the same
- * product still shares its value1/value2 combination. If none do, the
- * images tied to that combination get cleaned up too — otherwise they'd
- * sit in the DB and R2 forever with nothing left able to reference them.
+ * Deletes a variant, then checks whether any other variant still shares
+ * its variant_group_id. If none do, the group's images get cleaned up
+ * too — otherwise they'd sit in the DB and R2 forever with nothing left
+ * able to reference them.
  */
 export async function deleteVariant(id: number): Promise<void> {
   const db = await getDB();
@@ -210,43 +238,21 @@ export async function deleteVariant(id: number): Promise<void> {
   await db.prepare(`DELETE FROM inventory WHERE id = ?`).bind(id).run();
 
   const { results: remaining } = await db
-    .prepare(`
-      SELECT id FROM inventory
-      WHERE product_slug = ? AND value1 = ? AND IFNULL(value2,'') = IFNULL(?, '')
-    `)
-    .bind(variant.product_slug, variant.value1, variant.value2 ?? null)
+    .prepare(`SELECT id FROM inventory WHERE variant_group_id = ?`)
+    .bind(variant.variant_group_id)
     .all();
 
-  if (remaining.length === 0 && variant.value1) {
-    await deleteImagesForVariantGroup(
-      variant.product_slug,
-      variant.value1,
-      variant.value2
-    );
+  if (remaining.length === 0) {
+    await deleteImagesForVariantGroup(variant.variant_group_id);
   }
 }
 
 /** Deletes every inventory row for a product. Used when a whole product is deleted. */
-export async function deleteInventoryForProduct(productSlug: string): Promise<void> {
+export async function deleteInventoryForProduct(productId: number): Promise<void> {
   const db = await getDB();
 
   await db
-    .prepare(`DELETE FROM inventory WHERE product_slug = ?`)
-    .bind(productSlug)
-    .run();
-}
-
-/** Re-points every inventory row for a product to a new product_slug. */
-export async function repointInventoryToSlug(
-  oldProductSlug: string,
-  newProductSlug: string
-): Promise<void> {
-  if (oldProductSlug === newProductSlug) return;
-
-  const db = await getDB();
-
-  await db
-    .prepare(`UPDATE inventory SET product_slug = ? WHERE product_slug = ?`)
-    .bind(newProductSlug, oldProductSlug)
+    .prepare(`DELETE FROM inventory WHERE product_id = ?`)
+    .bind(productId)
     .run();
 }

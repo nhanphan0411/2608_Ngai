@@ -35,11 +35,9 @@ export default async function ProductPage({
 
   if (!product) return notFound();
 
-  const inventory: any[] = await getInventory(slug);
-  const images: any[] = await getAllImagesForProduct(slug);
+  const inventory: any[] = await getInventory(product.id);
+  const images: any[] = await getAllImagesForProduct(product.id);
   const options = buildProductOptions(inventory);
-
-  console.log("ProductPage: slug =", slug, "product =", product?.product_name);
 
   return (
     <ProductOptions
