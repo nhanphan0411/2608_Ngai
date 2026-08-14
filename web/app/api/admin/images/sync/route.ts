@@ -12,7 +12,7 @@ import { normalize } from "@/lib/db/inventory";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
-  const variant_group_id = formData.get("variant_group_id") as unknown as number;
+  const variant_group_id = Number(formData.get("variant_group_id"));
   const productSlug = formData.get("product_slug") as string;
   const value1 = normalize(formData.get("value1") as string) as string;
   const value2 = normalize(formData.get("value2") as string | null);

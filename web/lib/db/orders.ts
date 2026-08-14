@@ -194,59 +194,26 @@ export async function getOrderWithItems(publicId: string) {
   const { results } = await db
     .prepare(`
 SELECT
-  od.id,
-  od.quantity,
-  od.unit_price,
-  od.total_price,
+  od.id, od.quantity, od.unit_price, od.total_price,
 
-  i.id                AS variant_id,
-  i.variant1,
-  i.value1,
-  i.variant2,
-  i.value2,
-  i.variant3,
-  i.value3,
-  i.stock,
-  i.priceVND,
-  i.priceUSD,
-  i.status,
+  i.id AS variant_id, i.variant1, i.value1, i.variant2, i.value2,
+  i.variant3, i.value3, i.stock, i.priceVND, i.priceUSD, i.status,
 
-  p.id                AS product_id,
-  p.product_name,
-  p.product_slug,
-  p.description,
-  p.shipping,
-  p.sizeGuide,
-  p.notes,
+  p.id AS product_id, p.product_name, p.product_slug,
+  p.description, p.shipping, p.sizeGuide, p.notes,
 
   (
-    SELECT url_thumb
-    FROM images img
-    WHERE img.product_slug = i.product_slug
-      AND (
-        img.value1 IS NULL
-        OR img.value1 = i.value1
-      )
-      AND (
-        img.value2 IS NULL
-        OR img.value2 = i.value2
-      )
-    ORDER BY sort_order
-    LIMIT 1
+    SELECT url_thumb FROM images
+    WHERE variant_group_id = i.variant_group_id
+    ORDER BY sort_order LIMIT 1
   ) AS image
 
 FROM order_details od
-
-JOIN inventory i
-ON od.variant_id = i.id
-
-JOIN products p
-ON p.product_slug = i.product_slug
-
+JOIN inventory i ON od.variant_id = i.id
+JOIN products p ON p.id = i.product_id
 WHERE od.order_id = ?
+ORDER BY od.id`)
 
-ORDER BY od.id
-`)
     .bind(order.id)
     .all();
 
