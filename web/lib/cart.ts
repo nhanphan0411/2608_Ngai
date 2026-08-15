@@ -23,7 +23,9 @@ export function saveCart(cart: CartItem[]) {
 export function addToCart(variantId: number) {
   const cart = getCart();
 
-  const item = cart.find((item) => item.variant_id === variantId);
+  const item = cart.find(
+    (item) => item.variant_id === variantId
+  );
 
   if (item) {
     item.quantity++;
@@ -37,15 +39,15 @@ export function addToCart(variantId: number) {
   saveCart(cart);
 }
 
-
-
 export function updateQuantity(
   variantId: number,
   quantity: number
 ) {
   const cart = getCart();
 
-  const item = cart.find((item) => item.variant_id === variantId);
+  const item = cart.find(
+    (item) => item.variant_id === variantId
+  );
 
   if (!item) return;
 
@@ -66,11 +68,12 @@ export function clearCart() {
   localStorage.removeItem(CART_KEY);
 }
 
-
 export function increaseQuantity(variantId: number) {
   const cart = getCart();
 
-  const item = cart.find((item) => item.variant_id === variantId);
+  const item = cart.find(
+    (item) => item.variant_id === variantId
+  );
 
   if (!item) return;
 
@@ -82,7 +85,9 @@ export function increaseQuantity(variantId: number) {
 export function decreaseQuantity(variantId: number) {
   const cart = getCart();
 
-  const item = cart.find((item) => item.variant_id === variantId);
+  const item = cart.find(
+    (item) => item.variant_id === variantId
+  );
 
   if (!item) return;
 

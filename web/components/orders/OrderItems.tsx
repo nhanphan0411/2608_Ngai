@@ -35,7 +35,7 @@ export default function OrderItems({
           key={item.variant.id}
           className="border rounded p-5 mb-4"
         >
-          {!item.available ? (
+          {!item.available || !item.product || !item.variant ? (
             <div className="flex items-center justify-between">
               <p className="text-gray-500">
                 This item is no longer available

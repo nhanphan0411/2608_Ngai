@@ -201,13 +201,12 @@ export default function ProductOptions({
                                             value
                                         )
                                     }
-                                    className={`border px-2.5 py-1 text-xs uppercase cursor-pointer transition ${
-                                        active
-                                            ? "bg-black text-white"
-                                            : !available
-                                                ? "cursor-not-allowed opacity-30"
-                                                : "hover:bg-gray-100"
-                                    }`}
+                                    className={`border px-2.5 py-1 text-xs uppercase cursor-pointer transition ${active
+                                        ? "bg-black text-white"
+                                        : !available
+                                            ? "cursor-not-allowed opacity-30"
+                                            : "hover:bg-gray-100"
+                                        }`}
                                 >
                                     {value}
                                 </button>
@@ -222,26 +221,50 @@ export default function ProductOptions({
     return (
         <div className="md:flex md:h-screen md:min-h-0">
             {/* Image column */}
-            <div className="md:h-screen md:w-[50vw] md:overflow-y-auto">
+            <div
+                className="
+    flex
+    w-full
+    snap-x
+    snap-mandatory
+    overflow-x-auto
+    overflow-y-hidden
+    md:block
+    md:h-screen
+    md:w-[50vw]
+    md:snap-none
+    md:overflow-x-hidden
+    md:overflow-y-auto
+  "
+            >
                 {galleryImages.length > 0 ? (
                     galleryImages.map((img, i) => (
                         <div
                             key={img.id ?? i}
-                            className="relative aspect-square w-full bg-gray-100"
+                            className="
+          relative
+          aspect-[3/4]
+          w-full
+          shrink-0
+          snap-center
+          bg-gray-100
+          md:w-full
+          md:shrink
+          md:snap-none
+        "
                         >
                             <Image
                                 src={img.url_large}
-                                alt=""
+                                alt={`${product.product_name} - Image ${i + 1}`}
                                 fill
                                 sizes="(max-width: 768px) 100vw, 50vw"
                                 className="object-cover"
                                 priority={i === 0}
-                                loading="eager"
                             />
                         </div>
                     ))
                 ) : (
-                    <div className="flex aspect-square w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
+                    <div className="flex aspect-[4/3] w-full shrink-0 items-center justify-center bg-gray-100 text-sm text-gray-400">
                         No image
                     </div>
                 )}
@@ -274,7 +297,7 @@ export default function ProductOptions({
 
                 {/* Description */}
                 {product.description && (
-                    <div className="mt-4 text-xs leading-6 text-gray-600">
+                    <div className="mt-4 text-xs leading-6">
                         {product.description}
                     </div>
                 )}
@@ -313,7 +336,7 @@ export default function ProductOptions({
                             </p>
 
                             <button
-                                className="w-full border border-black bg-black px-4 py-3 text-sm font-medium uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-30"
+                                className="w-full  cursor-pointer border border-black bg-black px-4 py-3 text-sm font-medium uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-30"
                                 disabled={selectedVariant.stock === 0}
                                 onClick={() => {
                                     addToCart(selectedVariant.id);
@@ -332,50 +355,50 @@ export default function ProductOptions({
                     )}
                 </div>
 
-            <div className="border-t border-black mt-10">
-                {/* Details */}
-                {product.note && (
-                    <details className="mt-4">
-                        <summary className="cursor-pointer py-3 text-[10px] font-medium uppercase tracking-wide">
-                            DETAILS
+                <div className="md:border-t md:border-black md:mt-10 mt-2">
+                    {/* Details */}
+                    {product.note && (
+                        <details className="mt-4">
+                            <summary className="cursor-pointer py-3 text-[10px] font-medium uppercase tracking-wide">
+                                DETAILS
+                            </summary>
+
+                            <div className="pb-4 text-sm leading-6 text-gray-600">
+                                {product.note}
+                            </div>
+                        </details>
+                    )}
+
+                    {/* Size Guide */}
+                    {sizeGuide && (
+                        <details className="">
+                            <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
+                                SIZE GUIDE
+                            </summary>
+
+                            <div className="max-h-[60vh] overflow-y-auto pb-5 pt-3">
+                                <Image
+                                    src={sizeGuide.url}
+                                    alt={sizeGuide.name}
+                                    width={800}
+                                    height={1000}
+                                    className="h-auto w-full object-contain"
+                                />
+                            </div>
+                        </details>
+                    )}
+
+                    {/* Shipping */}
+                    <details className="">
+                        <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
+                            SHIPPING
                         </summary>
 
                         <div className="pb-4 text-sm leading-6 text-gray-600">
-                            {product.note}
+                            Free shipping · Ships within 2–3 business days
                         </div>
                     </details>
-                )}
-
-                {/* Size Guide */}
-                {sizeGuide && (
-                    <details className="">
-                        <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
-                            SIZE GUIDE
-                        </summary>
-
-                        <div className="max-h-[60vh] overflow-y-auto pb-5 pt-3">
-                            <Image
-                                src={sizeGuide.url}
-                                alt={sizeGuide.name}
-                                width={800}
-                                height={1000}
-                                className="h-auto w-full object-contain"
-                            />
-                        </div>
-                    </details>
-                )}
-
-                {/* Shipping */}
-                <details className="">
-                    <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
-                        SHIPPING
-                    </summary>
-
-                    <div className="pb-4 text-sm leading-6 text-gray-600">
-                        Free shipping · Ships within 2–3 business days
-                    </div>
-                </details>
-</div>
+                </div>
             </div>
         </div>
     );

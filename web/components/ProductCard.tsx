@@ -104,7 +104,7 @@ export default function ProductCard({
 
   return (
     <div className="overflow-hidden">
-      <div className="aspect-square bg-gray-100 relative">
+      <div className="aspect-[3/4] bg-gray-100 relative">
         {currentImage ? (
           <Image
             src={currentImage.url_mid}
@@ -113,7 +113,6 @@ export default function ProductCard({
             sizes="(max-width:768px) 50vw, 33vw"
             className="object-cover"
             priority={priority}
-            loading="lazy"
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">

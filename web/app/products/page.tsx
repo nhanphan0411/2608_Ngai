@@ -24,14 +24,14 @@ export default async function ProductsPage({
     }))
   );
   const columns = 3; // matches md:grid-cols-3
-    const minRows = 2; // always show at least 2 rows of grid lines
-    const cellCount = Math.max(cards.length, columns * minRows);
-    const paddedCount = Math.ceil(cellCount / columns) * columns;
-    const placeholders = paddedCount - cards.length;
+  const minRows = 2; // always show at least 2 rows of grid lines
+  const cellCount = Math.max(cards.length, columns * minRows);
+  const paddedCount = Math.ceil(cellCount / columns) * columns;
+  const placeholders = paddedCount - cards.length;
 
 
   return (
-    <main className="mb-2">
+    <main className="">
       <div className="grid grid-cols-2 md:grid-cols-3">
         {cards.map(({ product, variants, images }) => (
           <div
@@ -50,13 +50,13 @@ export default async function ProductsPage({
         ))}
       </div>
 
-      <div className="mb-10">
-      <Pagination
-        currentPage={page}
-        totalItems={total}
-        pageSize={PRODUCTS_PAGE_SIZE}
-        basePath="/products"
-      />
+      <div className="">
+        <Pagination
+          currentPage={page}
+          totalItems={total}
+          pageSize={PRODUCTS_PAGE_SIZE}
+          basePath="/products"
+        />
       </div>
     </main>
   );

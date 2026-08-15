@@ -51,6 +51,19 @@ export async function POST(req: NextRequest) {
 
       const product = await getProductById(variant.product_id);
 
+      if (!product) {
+        return {
+          ...item,
+          available: false,
+          unit_price: 0,
+          total_price: 0,
+          variant: null,
+          product: null,
+          image: null,
+        };
+      }
+
+
       const image = await getFirstImage(variant.variant_group_id);
 
       const price = isUSD && variant.priceUSD ? variant.priceUSD : (variant.priceVND ?? 0);
