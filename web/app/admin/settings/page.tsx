@@ -14,10 +14,50 @@ const emptySettings = {
 };
 
 export default function SettingsPage() {
+  const [sizeGuides, setSizeGuides] = useState<any[]>([]);
+  const [newGuideName, setNewGuideName] = useState("");
+  const [newGuideFile, setNewGuideFile] = useState<File | null>(null);
+  const [uploadingGuide, setUploadingGuide] = useState(false);
   const [form, setForm] = useState(emptySettings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [methodInput, setMethodInput] = useState("");
+  useEffect(() => {
+    fetch("/api/admin/size-guides").then(r => (r.json() as any)).then(setSizeGuides);
+  }, []);
+
+  async function uploadSizeGuide() {
+    if (!newGuideFile || !newGuideName.trim()) {
+      alert("Enter a name and choose an image.");
+      return;
+    }
+    setUploadingGuide(true);
+
+    const formData = new FormData();
+    formData.append("file", newGuideFile);
+    formData.append("name", newGuideName.trim());
+
+    const res = await fetch("/api/admin/size-guides", { method: "POST", body: formData });
+    if (res.ok) {
+      const guide = await res.json();
+      setSizeGuides(prev => [...prev, guide].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewGuideName("");
+      setNewGuideFile(null);
+    } else {
+      alert("Upload failed.");
+    }
+    setUploadingGuide(false);
+  }
+
+  async function deleteSizeGuide(id: number) {
+    if (!confirm("Delete this size guide?")) return;
+    await fetch("/api/admin/size-guides", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setSizeGuides(prev => prev.filter(g => g.id !== id));
+  }
 
   useEffect(() => {
     fetch("/api/admin/settings")
@@ -152,6 +192,44 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400 mt-2">
           Applied as a flat fee added to every order at checkout. Set to 0 for free shipping.
         </p>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-5">Size Guides</h2>
+
+        {sizeGuides.length === 0 ? (
+          <p className="text-sm text-gray-400 mb-4">No size guides yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            {sizeGuides.map((g) => (
+              <div key={g.id} className="rounded-lg border border-gray-200 overflow-hidden">
+                <img src={g.url} alt={g.name} className="w-full h-32 object-cover" />
+                <div className="p-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-700 truncate">{g.name}</span>
+                  <button onClick={() => deleteSizeGuide(g.id)} className="text-xs text-red-500 hover:text-red-700">✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className={labelClass}>Name</label>
+            <input className={inputClass} placeholder="Top Guide" value={newGuideName} onChange={(e) => setNewGuideName(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelClass}>Image</label>
+            <input type="file" accept="image/*" onChange={(e) => setNewGuideFile(e.target.files?.[0] ?? null)} />
+          </div>
+          <button
+            onClick={uploadSizeGuide}
+            disabled={uploadingGuide}
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            {uploadingGuide ? "Uploading…" : "Upload"}
+          </button>
+        </div>
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
+import { Spline_Sans_Mono} from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 import Toast from "@/components/Toast";
 
-const beVietnamPro = Be_Vietnam_Pro({
-  variable: "--font-be-vietnam-pro",
-  subsets: ["latin", "vietnamese"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+const spline_san_mono = Spline_Sans_Mono({
+  variable: "--font-spline_san_mono",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   style: ["normal", "italic"],
 });
 
@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${beVietnamPro.variable} h-full antialiased`}>
+    <html lang="vi" className={`${spline_san_mono.variable} h-full antialiased`}>
       <body className="min-h-full font-[family-name:var(--font-be-vietnam-pro)]">
         <SiteChrome>{children}</SiteChrome>
         <Toast />

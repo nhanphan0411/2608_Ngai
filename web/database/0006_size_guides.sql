@@ -1,0 +1,9 @@
+CREATE TABLE size_guides (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  r2_key TEXT NOT NULL,
+  url TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE products ADD COLUMN size_guide_id INTEGER REFERENCES size_guides(id);

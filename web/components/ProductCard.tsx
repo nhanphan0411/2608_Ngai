@@ -113,6 +113,7 @@ export default function ProductCard({
             sizes="(max-width:768px) 50vw, 33vw"
             className="object-cover"
             priority={priority}
+            loading="lazy"
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">

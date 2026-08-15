@@ -7,6 +7,7 @@ export default function ProductsPage() {
   const [collections, setCollections] = useState<any[]>([]);
   const [collectionId, setCollectionId] = useState<number | "">("");
   const [products, setProducts] = useState<any[]>([]);
+  const [sizeGuides, setSizeGuides] = useState<any[]>([]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const emptyForm = {
@@ -19,6 +20,7 @@ export default function ProductsPage() {
     description: "",
     shipping: "",
     sizeGuide: "",
+    size_guide_id: null as number | null,
     notes: "",
   };
 
@@ -29,6 +31,12 @@ export default function ProductsPage() {
       .then((res) => res.json())
       .then((data) => setCollections(data as any[]));
   }, []);
+
+  useEffect(() => {
+  fetch("/api/admin/size-guides")
+    .then((res) => res.json())
+    .then((data) => setSizeGuides(data as any[]));
+}, []);
 
   useEffect(() => {
     setProducts([]);
@@ -563,21 +571,18 @@ export default function ProductsPage() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>
-                    Size guide
-                  </label>
-
-                  <textarea
-                    className={inputClass}
-                    rows={3}
-                    value={form.sizeGuide}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        sizeGuide: e.target.value,
-                      })
-                    }
-                  />
+                    <label className={labelClass}>Size guide</label>
+                    <select
+                      className={selectClass + " w-full"}
+                      value={form.size_guide_id ?? ""}
+                      onChange={(e) => setForm({ ...form, size_guide_id: e.target.value ? Number(e.target.value) : null })}
+                    >
+                      <option value="">None</option>
+                      {sizeGuides.map((g: any) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  
                 </div>
               </div>
 

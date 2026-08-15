@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CountrySelector from "@/components/CountrySelector";
 
 export default function Footer() {
   const [settings, setSettings] = useState<any>(null);
@@ -22,7 +23,11 @@ export default function Footer() {
           {settings.contact_email && <span>{settings.contact_email}</span>}
           {settings.contact_phone && <span>{settings.contact_phone}</span>}
         </div>
+        <div className="w-[300px] pt-3">
+          <CountrySelector />
+        </div>
       </div>
+      
     </footer>
   );
 }

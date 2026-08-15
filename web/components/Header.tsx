@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getCart } from "@/lib/cart";
-import CountrySelector from "@/components/CountrySelector";
 
 const navLinks = [
   { href: "/products", label: "All Products" },
@@ -12,6 +12,8 @@ const navLinks = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
+
   const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -29,70 +31,109 @@ export default function Header() {
 
   const cartLabel = `Cart${cartCount > 0 ? ` (${cartCount})` : ""}`;
 
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-white md:inset-y-0 md:right-auto md:h-screen md:w-[20vw] md:border-b-0 md:border-r">
-      {/* Mobile top bar */}
-      <div className="flex h-16 items-center justify-between px-4 md:hidden">
-        <Link href="/" className="text-xl font-bold" onClick={() => setMenuOpen(false)}>
-          Ngài
-        </Link>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-expanded={menuOpen}
-          aria-controls="mobile-menu"
-          className="rounded border px-3 py-1.5 text-sm"
-        >
-          Menu
-        </button>
-      </div>
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
-      {/* Mobile dropdown */}
-      {menuOpen && (
-        <nav
-          id="mobile-menu"
-          className="absolute inset-x-0 top-16 flex flex-col gap-1 border-b bg-white px-4 py-3 text-sm md:hidden"
-        >
+  return (
+    <>
+      {/* ================= MOBILE HEADER ================= */}
+      <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black bg-white md:hidden">
+        <div className="flex h-full items-center justify-between px-4">
+          {/* Logo */}
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+          >
+            <img
+              src="https://pub-6dc4b85e0fa049fe813176c2b710444c.r2.dev/Homepage/logo_dark.png"
+              alt="Ngài"
+              className="w-[100px]"
+            />
+          </Link>
+
+          {/* Menu button */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            className="border border-black px-3 py-1.5 text-sm"
+          >
+            Menu
+          </button>
+        </div>
+
+        {/* Mobile navigation */}
+        {menuOpen && (
+          <nav className="border-b border-black bg-white">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`block border-b border-black px-4 py-3 text-sm last:border-b-0 ${
+                  isActive(link.href)
+                    ? "bg-black text-white"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            <Link
+              href="/cart"
+              onClick={() => setMenuOpen(false)}
+              className={`block px-4 py-3 text-sm ${
+                pathname === "/cart"
+                  ? "bg-black text-white"
+                  : "hover:bg-gray-100"
+              }`}
+            >
+              {cartLabel}
+            </Link>
+          </nav>
+        )}
+      </header>
+
+      {/* ================= DESKTOP SIDEBAR ================= */}
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r border-black bg-white md:block">
+        {/* Vertical logo */}
+        <Link href="/" className="absolute left-20 top-5">
+          <img
+            src="https://pub-6dc4b85e0fa049fe813176c2b710444c.r2.dev/Homepage/logo_dark.png"
+            alt="Ngài"
+            className="w-[140px] origin-top-left rotate-90"
+          />
+        </Link>
+
+        {/* Centered navigation */}
+        <nav className="absolute left-4 top-1/2 w-[calc(100%-2rem)] -translate-y-1/2 border border-black">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="py-2 hover:underline"
-              onClick={() => setMenuOpen(false)}
+              className={`block border-b border-black px-4 py-3 text-sm last:border-b-0 ${
+                isActive(link.href)
+                  ? "bg-black text-white"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
             >
               {link.label}
             </Link>
           ))}
-          <Link href="/cart" className="py-2 hover:underline" onClick={() => setMenuOpen(false)}>
-            {cartLabel}
-          </Link>
-          <div className="pt-2">
-            <CountrySelector />
-          </div>
-        </nav>
-      )}
 
-      {/* Desktop column */}
-      <div className="hidden h-full flex-col px-6 py-8 md:flex">
-        <Link href="/" className="text-xl font-bold">
-          Ngài
-        </Link>
-
-        <nav className="mt-10 flex flex-col gap-4 text-sm">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:underline">
-              {link.label}
-            </Link>
-          ))}
-          <Link href="/cart" className="hover:underline">
+          <Link
+            href="/cart"
+            className={`block px-4 py-3 text-sm ${
+              pathname === "/cart"
+                ? "bg-black text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
             {cartLabel}
           </Link>
         </nav>
-
-        <div className="mt-auto pt-6">
-          <CountrySelector />
-        </div>
-      </div>
-    </header>
+      </aside>
+    </>
   );
 }

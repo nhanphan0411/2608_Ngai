@@ -4,10 +4,12 @@ import { getProductBySlug } from "@/lib/db/products";
 import { getInventory } from "@/lib/db/inventory";
 import { getAllImagesForProduct } from "@/lib/db/images";
 import { buildProductOptions } from "@/lib/productOptions";
+import { getSizeGuideById } from "@/lib/db/sizeGuides";
 import ProductOptions from "@/components/ProductOptions";
 import { notFound } from "next/navigation";
 
 import type { Metadata } from "next";
+
 
 export async function generateMetadata({
   params,
@@ -38,12 +40,14 @@ export default async function ProductPage({
   const inventory: any[] = await getInventory(product.id);
   const images: any[] = await getAllImagesForProduct(product.id);
   const options = buildProductOptions(inventory);
+  const sizeGuide = product.size_guide_id ? await getSizeGuideById(product.size_guide_id) : null;
 
   return (
     <ProductOptions
       product={product}
       options={options}
       variants={inventory}
+      sizeGuide={sizeGuide}
       images={images}
     />
   );

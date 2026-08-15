@@ -171,14 +171,14 @@ export async function saveProducts(products: Product[]): Promise<void> {
   const stmt = db.prepare(`
     INSERT INTO products (
       id, collection_id, product_name, product_slug,
-      category, status, description, shipping, sizeGuide, notes
+      category, status, description, shipping, sizeGuide, size_guide_id, notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const batch = products.map((p) =>
     stmt.bind(
       p.id, p.collection_id, p.product_name, p.product_slug,
-      p.category, p.status, p.description, p.shipping, p.sizeGuide, p.notes
+      p.category, p.status, p.description, p.shipping, p.sizeGuide, p.size_guide_id, p.notes
     )
   );
 
@@ -199,13 +199,13 @@ export async function createProduct(product: Omit<Product, "id">) {
   await db.prepare(`
     INSERT INTO products (
       collection_id, product_name, product_slug,
-      category, status, description, shipping, sizeGuide, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      category, status, description, shipping, sizeGuide, size_guide_id, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   .bind(
     product.collection_id, product.product_name, product.product_slug,
     product.category, product.status, product.description,
-    product.shipping, product.sizeGuide, product.notes
+    product.shipping, product.sizeGuide, product.size_guide_id, product.notes
   )
   .run();
 }
@@ -224,13 +224,13 @@ export async function updateProduct(product: Product) {
     SET
       collection_id = ?, product_name = ?, product_slug = ?,
       category = ?, status = ?, description = ?,
-      shipping = ?, sizeGuide = ?, notes = ?
+      shipping = ?, sizeGuide = ?, size_guide_id = ?, notes = ?
     WHERE id = ?
   `)
   .bind(
     product.collection_id, product.product_name, product.product_slug,
     product.category, product.status, product.description,
-    product.shipping, product.sizeGuide, product.notes,
+    product.shipping, product.sizeGuide, product.size_guide_id, product.notes,
     product.id
   )
   .run();

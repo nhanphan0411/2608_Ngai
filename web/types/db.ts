@@ -16,6 +16,7 @@ export interface Product {
   description: string | null;
   shipping: string | null;
   sizeGuide: string | null;
+  size_guide_id: number | null;
   notes: string | null;
 }
 

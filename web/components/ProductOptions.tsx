@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { addToCart } from "@/lib/cart";
 import { formatPrice, getCurrency } from "@/lib/currency";
+import { showToast } from "@/lib/toast";
 import Image from "next/image";
 
 export default function ProductOptions({
@@ -10,16 +11,19 @@ export default function ProductOptions({
     options,
     variants,
     images,
+    sizeGuide,
 }: {
-    product: { product_name: string; category: string | null; description?: string | null };
-    options: {
-        name: string;
-        values: string[];
-    }[];
+    product: {
+        product_name: string;
+        category: string | null;
+        description?: string | null;
+        note?: string | null;
+    };
+    options: { name: string; values: string[] }[];
     variants: any[];
     images: any[];
+    sizeGuide: { id: number; name: string; url: string } | null;
 }) {
-    console.log("ProductOptions received product:", product);
     const [selected, setSelected] = useState<Record<string, string>>(() => {
         const first = variants[0];
 
@@ -102,7 +106,6 @@ export default function ProductOptions({
 
             for (let i = changedIndex + 1; i < options.length; i++) {
                 const layer = options[i];
-
                 const currentValue = next[layer.name];
 
                 const parentConstraints: Record<string, string> = {};
@@ -152,53 +155,73 @@ export default function ProductOptions({
         (img) => img.variant_group_id === selectedVariant?.variant_group_id
     );
 
-    // "Size" gets its own slot in the vertical order; every other option
-    // (color, material, etc.) is grouped under "variants" near the bottom.
+    // Size gets its own row; all other options appear underneath.
     const sizeOption = options.find((o) => /size/i.test(o.name));
     const otherOptions = options.filter((o) => o !== sizeOption);
 
-    function renderOptionGroup(option: { name: string; values: string[] }) {
+    function renderOptionGroup(
+        option: { name: string; values: string[] },
+        inline = false
+    ) {
         const optionIndex = options.indexOf(option);
 
         return (
             <div key={option.name}>
-                <h2 className="mb-2 text-sm font-bold">{option.name}</h2>
+                <div
+                    className={
+                        inline
+                            ? "flex items-center gap-3"
+                            : "flex flex-col gap-2"
+                    }
+                >
+                    {/* Variation name */}
+                    <h2 className="shrink-0 text-sm uppercase tracking-wide">
+                        {option.name}
+                    </h2>
 
-                <div className="flex flex-wrap gap-2">
-                    {option.values.map((value) => {
-                        const active = selected[option.name] === value;
-                        const available = isOptionValueAvailable(
-                            optionIndex,
-                            option.name,
-                            value
-                        );
+                    {/* Variation values */}
+                    <div className="flex flex-wrap gap-1.5">
+                        {option.values.map((value) => {
+                            const active = selected[option.name] === value;
 
-                        return (
-                            <button
-                                key={value}
-                                disabled={!available}
-                                onClick={() =>
-                                    selectOption(optionIndex, option.name, value)
-                                }
-                                className={`rounded border px-4 py-2 text-sm ${active
-                                        ? "bg-black text-white"
-                                        : !available
-                                            ? "cursor-not-allowed opacity-30"
-                                            : ""
+                            const available = isOptionValueAvailable(
+                                optionIndex,
+                                option.name,
+                                value
+                            );
+
+                            return (
+                                <button
+                                    key={value}
+                                    disabled={!available}
+                                    onClick={() =>
+                                        selectOption(
+                                            optionIndex,
+                                            option.name,
+                                            value
+                                        )
+                                    }
+                                    className={`border px-2.5 py-1 text-xs uppercase cursor-pointer transition ${
+                                        active
+                                            ? "bg-black text-white"
+                                            : !available
+                                                ? "cursor-not-allowed opacity-30"
+                                                : "hover:bg-gray-100"
                                     }`}
-                            >
-                                {value}
-                            </button>
-                        );
-                    })}
+                                >
+                                    {value}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="md:flex md:h-[calc(100vh-4rem)] md:min-h-0 md:h-screen">
-            {/* Image column — 50vw on desktop, scrolls independently */}
+        <div className="md:flex md:h-screen md:min-h-0">
+            {/* Image column */}
             <div className="md:h-screen md:w-[50vw] md:overflow-y-auto">
                 {galleryImages.length > 0 ? (
                     galleryImages.map((img, i) => (
@@ -213,6 +236,7 @@ export default function ProductOptions({
                                 sizes="(max-width: 768px) 100vw, 50vw"
                                 className="object-cover"
                                 priority={i === 0}
+                                loading="eager"
                             />
                         </div>
                     ))
@@ -223,15 +247,22 @@ export default function ProductOptions({
                 )}
             </div>
 
-            {/* Details column — 30vw on desktop, centered content */}
-            <div className="flex flex-col justify-center gap-6 px-8 py-10 md:h-screen md:w-[30vw]">
-                <p className="text-sm tracking-wide text-gray-500">
-                    {product.category}
-                </p>
+            {/* Details column */}
+            <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto">
+                {/* Category */}
+                {product.category && (
+                    <p className="mb-3 text-xs text-gray-500">
+                        {product.category}
+                    </p>
+                )}
 
-                <h1 className="text-3xl font-bold">{product.product_name}</h1>
+                {/* Product name */}
+                <h1 className="text-3xl font-bold">
+                    {product.product_name}
+                </h1>
 
-                <p className="text-lg">
+                {/* Price */}
+                <p className="mt-3 text-lg">
                     {selectedVariant
                         ? formatPrice(
                             selectedVariant.priceVND,
@@ -241,11 +272,38 @@ export default function ProductOptions({
                         : "Select options"}
                 </p>
 
+                {/* Description */}
                 {product.description && (
-                    <p className="text-sm text-gray-600">{product.description}</p>
+                    <div className="mt-4 text-xs leading-6 text-gray-600">
+                        {product.description}
+                    </div>
                 )}
 
-                <div className="mt-2 w-full">
+                {/* Options */}
+                <div className="mt-5 flex flex-col gap-4">
+                    {/* Other options */}
+                    {otherOptions.map((option) => {
+                        // Hide color visually when there is only one color.
+                        if (
+                            /color/i.test(option.name) &&
+                            option.values.length === 1
+                        ) {
+                            return null;
+                        }
+
+                        return renderOptionGroup(option, true);
+                    })}
+
+                    {/* Size */}
+                    {sizeOption && (
+                        <div>
+                            {renderOptionGroup(sizeOption, true)}
+                        </div>
+                    )}
+                </div>
+
+                {/* Add to cart */}
+                <div className="mt-6 w-full pb-2">
                     {selectedVariant ? (
                         <>
                             <p className="mb-3 text-xs text-gray-500">
@@ -255,11 +313,11 @@ export default function ProductOptions({
                             </p>
 
                             <button
-                                className="w-full rounded border px-4 py-3 disabled:cursor-not-allowed disabled:opacity-30"
+                                className="w-full border border-black bg-black px-4 py-3 text-sm font-medium uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-30"
                                 disabled={selectedVariant.stock === 0}
                                 onClick={() => {
                                     addToCart(selectedVariant.id);
-                                    alert("Added to cart");
+                                    showToast("Added to cart");
                                 }}
                             >
                                 {selectedVariant.stock === 0
@@ -268,24 +326,56 @@ export default function ProductOptions({
                             </button>
                         </>
                     ) : (
-                        <p className="text-sm">Please select all options.</p>
+                        <p className="text-sm">
+                            Please select all options.
+                        </p>
                     )}
                 </div>
 
-                {sizeOption && renderOptionGroup(sizeOption)}
+            <div className="border-t border-black mt-10">
+                {/* Details */}
+                {product.note && (
+                    <details className="mt-4">
+                        <summary className="cursor-pointer py-3 text-[10px] font-medium uppercase tracking-wide">
+                            DETAILS
+                        </summary>
 
-                {/* TODO: wire up real shipping data once available */}
-                <p className="text-xs text-gray-500">
-                    Free shipping · Ships within 2–3 business days
-                </p>
+                        <div className="pb-4 text-sm leading-6 text-gray-600">
+                            {product.note}
+                        </div>
+                    </details>
+                )}
 
-                {otherOptions.map((option) => {
-                    if (/color/i.test(option.name) && option.values.length === 1) {
-                        return null;
-                    }
+                {/* Size Guide */}
+                {sizeGuide && (
+                    <details className="">
+                        <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
+                            SIZE GUIDE
+                        </summary>
 
-                    return renderOptionGroup(option);
-                })}
+                        <div className="max-h-[60vh] overflow-y-auto pb-5 pt-3">
+                            <Image
+                                src={sizeGuide.url}
+                                alt={sizeGuide.name}
+                                width={800}
+                                height={1000}
+                                className="h-auto w-full object-contain"
+                            />
+                        </div>
+                    </details>
+                )}
+
+                {/* Shipping */}
+                <details className="">
+                    <summary className="cursor-pointer py-3 text-sm uppercase tracking-wide">
+                        SHIPPING
+                    </summary>
+
+                    <div className="pb-4 text-sm leading-6 text-gray-600">
+                        Free shipping · Ships within 2–3 business days
+                    </div>
+                </details>
+</div>
             </div>
         </div>
     );
