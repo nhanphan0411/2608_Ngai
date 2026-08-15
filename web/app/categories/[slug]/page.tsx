@@ -2,10 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { getCategoryBySlug } from "@/lib/categories";
 import { getProductsByCategoryPaginated, PRODUCTS_PAGE_SIZE } from "@/lib/db/products";
-import { getInventory } from "@/lib/db/inventory";
-import { getAllImagesForProduct } from "@/lib/db/images";
-import ProductCard from "@/components/ProductCard";
-import Pagination from "@/components/Pagination";
+import { buildProductCards } from "@/lib/db/productCards";
+import ProductGrid from "@/components/ProductGrid";
 import { notFound } from "next/navigation";
 
 import type { Metadata } from "next";
@@ -32,40 +30,16 @@ export default async function CategoryPage({
   const page = Math.max(1, Number(pageParam) || 1);
 
   const category = getCategoryBySlug(slug);
-
   if (!category) return notFound();
 
   const { products, total } = await getProductsByCategoryPaginated(category.name, page);
-
-  const cards = await Promise.all(
-    products.map(async (product) => ({
-      product,
-      variants: await getInventory(product.id),
-      images: await getAllImagesForProduct(product.id),
-    }))
-  );
+  const cards = await buildProductCards(products);
 
   return (
-    <main className="max-w-5xl mx-auto p-10">
-      <h1 className="text-3xl font-bold mb-8">{category.name}</h1>
-
-      {cards.length === 0 ? (
-        <p className="text-gray-400 text-sm">No products in this category.</p>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          {cards.map(({ product, variants, images }, i) => (
-            <ProductCard
-              key={product.product_slug}
-              product={product}
-              variants={variants}
-              images={images}
-              priority={i < 3}
-            />
-          ))}
-        </div>
-      )}
-
-      <Pagination
+    <main className="border-b border-black">
+      <ProductGrid
+        cards={cards}
+        emptyMessage="No products in this category."
         currentPage={page}
         totalItems={total}
         pageSize={PRODUCTS_PAGE_SIZE}

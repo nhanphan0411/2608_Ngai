@@ -11,7 +11,7 @@ export default function Footer() {
 
   return (
     <footer className="md:h-[100px] md:py-0 py-4 m h-[50vh] border-t border-black">
-      <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-6 md:gap-0 ">
+      <div className="grid h-full grid-cols-1 gap-1 md:grid-cols-6 md:gap-0 ">
 
         {links.map((link) => (
           <a

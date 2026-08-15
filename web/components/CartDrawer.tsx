@@ -20,9 +20,12 @@ type CartItem = {
     product: { id: number; product_name: string } | null;
     variant: {
         id: number;
-        variant1: string | null; value1: string | null;
-        variant2: string | null; value2: string | null;
-        variant3: string | null; value3: string | null;
+        variant1: string | null;
+        value1: string | null;
+        variant2: string | null;
+        value2: string | null;
+        variant3: string | null;
+        value3: string | null;
         stock: number;
     } | null;
 };
@@ -54,7 +57,7 @@ export default function CartDrawer({
             }),
         });
 
-        const data = await (response.json() as any);
+        const data = (await response.json()) as CartItem[];
 
         setItems(data);
     }
@@ -97,11 +100,14 @@ export default function CartDrawer({
     if (!open) return null;
 
     const validItems = items.filter((item) => item.available);
-    const subtotal = validItems.reduce((total, item) => total + item.unit_price * item.quantity, 0);
+
+    const subtotal = validItems.reduce(
+        (total, item) => total + item.unit_price * item.quantity,
+        0
+    );
 
     const totalQuantity = validItems.reduce(
-        (total, item) =>
-            total + item.quantity,
+        (total, item) => total + item.quantity,
         0
     );
 
@@ -112,17 +118,31 @@ export default function CartDrawer({
     }).format(new Date());
 
     function getVariations(item: CartItem) {
-        if (!item.variant) return "";
-        const v = item.variant;
-        return [
-            [v.variant1, v.value1],
-            [v.variant2, v.value2],
-            [v.variant3, v.value3],
-        ]
-            .filter(([name, value]) => name && value)
-            .map(([name, value]) => `${name}: ${value}`)
-            .join(" · ");
-    }
+    if (!item.variant) return "";
+
+    const v = item.variant;
+
+    return [
+        [v.variant1, v.value1],
+        [v.variant2, v.value2],
+        [v.variant3, v.value3],
+    ]
+        .filter(([name, value]) => {
+            if (!name || !value) return false;
+
+            // Hide "Color: Original"
+            if (
+                name.toLowerCase() === "color" &&
+                value.toLowerCase() === "original"
+            ) {
+                return false;
+            }
+
+            return true;
+        })
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(" · ");
+}
 
     return (
         <div
@@ -131,7 +151,7 @@ export default function CartDrawer({
         >
             {/* Popup */}
             <div
-                className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden border border-black bg-white"
+                className="relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden border border-black bg-white"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Close button */}
@@ -139,7 +159,7 @@ export default function CartDrawer({
                     type="button"
                     onClick={onClose}
                     aria-label="Close cart"
-                    className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center text-2xl leading-none cursor-pointer"
+                    className="absolute right-4 top-4 z-10 flex h-8 w-8 cursor-pointer items-center justify-center text-2xl leading-none"
                 >
                     ×
                 </button>
@@ -171,6 +191,7 @@ export default function CartDrawer({
 
                 {/* Table */}
                 <div className="flex-1 overflow-y-auto px-6">
+
                     {/* Table header */}
                     <div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-dotted border-black py-3 text-[10px] font-medium uppercase tracking-wide">
                         <div>ITEMS</div>
@@ -193,15 +214,46 @@ export default function CartDrawer({
                         items.map((item) => (
                             <div
                                 key={item.variant_id}
-                                className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-dotted border-black py-4"
+                                className="border-b border-dotted border-black py-4"
                             >
-                                {/* Item */}
-                                <div className="flex min-w-0 items-center gap-4">
+                                {/* ================================================= */}
+                                {/* PRODUCT INFORMATION */}
+                                {/* ================================================= */}
+
+                                <div className="mb-3 min-w-0">
+                                    <p className="text-sm font-medium">
+                                        {item.product?.product_name ??
+                                            "Unavailable item"}
+                                    </p>
+
+                                    {getVariations(item) && (
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            {getVariations(item)}
+                                        </p>
+                                    )}
+
+                                    {!item.available && (
+                                        <p className="mt-1 text-xs text-red-500">
+                                            Unavailable
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* ================================================= */}
+                                {/* IMAGE / QUANTITY / AMOUNT */}
+                                {/* ================================================= */}
+
+                                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4">
+
+                                    {/* Image */}
                                     <div className="relative h-20 w-20 shrink-0 bg-gray-100">
                                         {item.image ? (
                                             <Image
                                                 src={item.image}
-                                                alt={item.product?.product_name ?? ""}
+                                                alt={
+                                                    item.product
+                                                        ?.product_name ?? ""
+                                                }
                                                 fill
                                                 sizes="80px"
                                                 className="object-cover"
@@ -209,59 +261,47 @@ export default function CartDrawer({
                                         ) : null}
                                     </div>
 
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium">
-                                            {item.product?.product_name ?? "Unavailable item"}
-                                        </p>
+                                    {/* Quantity */}
+                                    <div className="flex w-28 items-center justify-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                decreaseQuantity(
+                                                    item.variant_id
+                                                );
+                                                loadCart();
+                                            }}
+                                            className="flex h-7 w-7 cursor-pointer items-center justify-center text-sm"
+                                        >
+                                            −
+                                        </button>
 
-                                        {getVariations(item) && (
-                                            <p className="mt-1 text-xs text-gray-500">
-                                                {getVariations(item)}
-                                            </p>
-                                        )}
+                                        <span className="flex h-7 w-8 items-center justify-center text-xs">
+                                            {item.quantity}
+                                        </span>
 
-                                        {!item.available && (
-                                            <p className="mt-1 text-xs text-red-500">Unavailable</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                increaseQuantity(
+                                                    item.variant_id
+                                                );
+                                                loadCart();
+                                            }}
+                                            className="flex h-7 w-7 cursor-pointer items-center justify-center text-sm"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+
+                                    {/* Amount */}
+                                    <div className="w-24 text-right text-xs">
+                                        {formatPrice(
+                                            item.unit_price * item.quantity,
+                                            item.unit_price * item.quantity,
+                                            currency
                                         )}
                                     </div>
-                                </div>
-
-                                {/* Quantity */}
-                                <div className="flex w-28 items-center justify-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            decreaseQuantity(item.variant_id);
-                                            loadCart();
-                                        }}
-                                        className="flex h-7 w-7 items-center justify-center cursor-pointer border border-black text-sm"
-                                    >
-                                        −
-                                    </button>
-
-                                    <span className="flex h-7 w-8 items-center justify-center text-xs">
-                                        {item.quantity}
-                                    </span>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            increaseQuantity(item.variant_id);
-                                            loadCart();
-                                        }}
-                                        className="flex h-7 w-7 items-center justify-center cursor-pointer border border-black text-sm"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-
-                                {/* Amount */}
-                                <div className="w-24 text-right text-sm">
-                                    {formatPrice(
-                                        item.unit_price * item.quantity,
-                                        item.unit_price * item.quantity,
-                                        currency
-                                    )}
                                 </div>
                             </div>
                         ))

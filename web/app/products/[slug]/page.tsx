@@ -5,7 +5,7 @@ import { getInventory } from "@/lib/db/inventory";
 import { getAllImagesForProduct } from "@/lib/db/images";
 import { buildProductOptions } from "@/lib/productOptions";
 import { getSizeGuideById } from "@/lib/db/sizeGuides";
-import ProductOptions from "@/components/ProductOptions";
+import ProductDetails from "@/components/ProductDetails";
 import { notFound } from "next/navigation";
 
 import type { Metadata } from "next";
@@ -43,7 +43,7 @@ export default async function ProductPage({
   const sizeGuide = product.size_guide_id ? await getSizeGuideById(product.size_guide_id) : null;
 
   return (
-    <ProductOptions
+    <ProductDetails
       product={product}
       options={options}
       variants={inventory}

@@ -16,7 +16,6 @@ type Props = {
   shippingFee?: number;
 };
 
-
 export default function OrderItems({
   items,
   editable = false,
@@ -26,159 +25,259 @@ export default function OrderItems({
   subtotal,
   showCheckout = false,
   currency = "VND",
-  shippingFee
+  shippingFee,
 }: Props) {
+  function formatMoney(amount: number) {
+    return currency === "USD"
+      ? `$${amount.toFixed(2)}`
+      : `${amount.toLocaleString()} VND`;
+  }
+
   return (
-    <>
-      {items.map((item) => (
-        <div
-          key={item.variant.id}
-          className="border rounded p-5 mb-4"
-        >
-          {!item.available || !item.product || !item.variant ? (
-            <div className="flex items-center justify-between">
-              <p className="text-gray-500">
-                This item is no longer available
-              </p>
+    <div className="w-full">
 
-              {editable && (
-                <button
-                  onClick={() => onRemove?.(item.variant_id)}
-                  className="text-red-600 underline"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex gap-5">
+      {/* ================================================= */}
+      {/* TABLE HEADER */}
+      {/* ================================================= */}
 
-              <div className="w-28 h-28 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-dotted border-black py-3 text-[10px] font-medium uppercase tracking-wide">
+        <div>Item</div>
 
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.product.product_name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
-                    No image
-                  </div>
-                )}
+        <div className="w-24 text-center">
+          Quantity
+        </div>
 
-              </div>
+        <div className="w-24 text-right">
+          Amount
+        </div>
+      </div>
 
-              <div className="flex-1">
+      {/* ================================================= */}
+      {/* ITEMS */}
+      {/* ================================================= */}
 
-                <h2 className="text-xl font-bold">
-                  {item.product.product_name}
-                </h2>
+      {items.length === 0 ? (
+        <div className="py-12 text-center text-sm text-gray-500">
+          Your cart is empty.
+        </div>
+      ) : (
+        items.map((item) => (
+          <div
+            key={item.variant?.id ?? item.variant_id}
+            className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-dotted border-black py-4"
+          >
+            {/* ============================================= */}
+            {/* ITEM */}
+            {/* ============================================= */}
 
-                {item.variant.variant1 && (
-                  <p>
-                    {item.variant.variant1}: {item.variant.value1}
-                  </p>
-                )}
-
-                {item.variant.variant2 && (
-                  <p>
-                    {item.variant.variant2}: {item.variant.value2}
-                  </p>
-                )}
-
-                {item.variant.variant3 && (
-                  <p>
-                    {item.variant.variant3}: {item.variant.value3}
-                  </p>
-                )}
-
-                <p className="mt-2">
-                  Quantity: {item.quantity}
-                </p>
-
-                <p>
-
-                  {currency === "USD"
-                    ? `$${item.unit_price.toFixed(2)}`
-                    : `${item.unit_price.toLocaleString()} VND`}
+            {!item.available ||
+            !item.product ||
+            !item.variant ? (
+              <div className="col-span-3 flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  This item is no longer available
                 </p>
 
                 {editable && (
-                  <div className="flex gap-2 mt-4">
-
-                    <button
-                      onClick={() => onDecrease?.(item.variant_id)}
-                    >
-                      -
-                    </button>
-
-                    <button
-                      disabled={item.quantity >= item.variant.stock}
-                      className={
-                        item.quantity >= item.variant.stock
-                          ? "opacity-30 cursor-not-allowed"
-                          : ""
-                      }
-                      onClick={() => onIncrease?.(item.variant_id)}
-                    >
-                      +
-                    </button>
-
-                    <button
-                      onClick={() => onRemove?.(item.variant_id)}
-                    >
-                      Remove
-                    </button>
-
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onRemove?.(item.variant_id)
+                    }
+                    className="text-xs underline"
+                  >
+                    Remove
+                  </button>
                 )}
-
               </div>
+            ) : (
+              <>
+                <div className="flex min-w-0 items-center gap-3">
 
-            </div>
-          )}
-        </div>
-      ))}
+                  {/* Image */}
+                  <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden bg-gray-100">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.product.product_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
+                        No image
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product information */}
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm font-medium">
+                      {item.product.product_name}
+                    </h2>
+
+                    <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                      {item.variant.variant1 &&
+                        item.variant.value1 && (
+                          <p>
+                            {item.variant.variant1}:{" "}
+                            {item.variant.value1}
+                          </p>
+                        )}
+
+                      {item.variant.variant2 &&
+                        item.variant.value2 && (
+                          <p>
+                            {item.variant.variant2}:{" "}
+                            {item.variant.value2}
+                          </p>
+                        )}
+
+                      {item.variant.variant3 &&
+                        item.variant.value3 && (
+                          <p>
+                            {item.variant.variant3}:{" "}
+                            {item.variant.value3}
+                          </p>
+                        )}
+                    </div>
+
+                    
+
+                    {editable && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onRemove?.(item.variant_id)
+                        }
+                        className="mt-2 text-xs underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ========================================= */}
+                {/* QUANTITY */}
+                {/* ========================================= */}
+
+                <div className="flex w-24 items-center justify-center">
+                  {editable ? (
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onDecrease?.(item.variant_id)
+                        }
+                        className="flex h-7 w-7 items-center justify-center border border-black text-sm"
+                      >
+                        −
+                      </button>
+
+                      <span className="flex h-7 w-8 items-center justify-center text-xs">
+                        {item.quantity}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={
+                          item.quantity >=
+                          item.variant.stock
+                        }
+                        onClick={() =>
+                          onIncrease?.(item.variant_id)
+                        }
+                        className={`flex h-7 w-7 items-center justify-center border border-black text-sm ${
+                          item.quantity >=
+                          item.variant.stock
+                            ? "cursor-not-allowed opacity-30"
+                            : ""
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs">
+                      {item.quantity}
+                    </span>
+                  )}
+                </div>
+
+                {/* ========================================= */}
+                {/* AMOUNT */}
+                {/* ========================================= */}
+
+                <div className="w-24 text-right text-sm">
+                  {formatMoney(
+                    item.unit_price * item.quantity
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ))
+      )}
+
+      {/* ================================================= */}
+      {/* SUMMARY */}
+      {/* ================================================= */}
 
       {subtotal !== undefined && (
-        <div className="mt-10 border-t pt-6 space-y-1">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Subtotal</span>
+        <div className="space-y-2 py-5">
+
+          {/* Subtotal */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium uppercase tracking-wide">
+              Subtotal
+            </span>
+
             <span>
-              {currency === "USD" ? `$${subtotal.toFixed(2)}` : `${subtotal.toLocaleString()} VND`}
+              {formatMoney(subtotal)}
             </span>
           </div>
 
+          {/* Shipping */}
           {shippingFee !== undefined && (
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Shipping</span>
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span className="uppercase tracking-wide">
+                Shipping
+              </span>
+
               <span>
                 {shippingFee === 0
                   ? "Free"
-                  : currency === "USD"
-                    ? `$${shippingFee.toFixed(2)}`
-                    : `${shippingFee.toLocaleString()} VND`}
+                  : formatMoney(shippingFee)}
               </span>
             </div>
           )}
 
-          <div className="flex justify-between text-xl font-bold pt-2">
-            <span>Total</span>
-            <span>
-              {currency === "USD"
-                ? `$${(subtotal + (shippingFee ?? 0)).toFixed(2)}`
-                : `${(subtotal + (shippingFee ?? 0)).toLocaleString()} VND`}
-            </span>
-          </div>
+          {/* Total */}
+          {shippingFee !== undefined && (
+            <div className="flex items-center justify-between border-t border-black border-dotted pt-4 text-sm font-medium">
+              <span className="uppercase tracking-wide">
+                Total
+              </span>
 
+              <span>
+                {formatMoney(
+                  subtotal + shippingFee
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* Checkout */}
           {showCheckout && (
-            <Link href="/checkout" className="inline-block mt-8 border px-6 py-3">
+            <Link
+              href="/checkout"
+              className="mt-5 block w-full bg-black px-4 py-4 text-center text-sm font-medium uppercase tracking-wide text-white transition hover:bg-gray-800"
+            >
               Checkout
             </Link>
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
