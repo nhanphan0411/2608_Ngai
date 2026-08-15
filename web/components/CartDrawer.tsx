@@ -12,19 +12,19 @@ import Link from "next/link";
 
 type CartItem = {
     variant_id: number;
-    product_id: number;
-    product_name: string;
     quantity: number;
     unit_price: number;
+    total_price: number;
     available: boolean;
-    image_url?: string | null;
-
-    variant1?: string | null;
-    value1?: string | null;
-    variant2?: string | null;
-    value2?: string | null;
-    variant3?: string | null;
-    value3?: string | null;
+    image: string | null;
+    product: { id: number; product_name: string } | null;
+    variant: {
+        id: number;
+        variant1: string | null; value1: string | null;
+        variant2: string | null; value2: string | null;
+        variant3: string | null; value3: string | null;
+        stock: number;
+    } | null;
 };
 
 export default function CartDrawer({
@@ -97,12 +97,7 @@ export default function CartDrawer({
     if (!open) return null;
 
     const validItems = items.filter((item) => item.available);
-
-    const subtotal = validItems.reduce(
-        (total, item) =>
-            total + item.unit_price * item.quantity,
-        0
-    );
+    const subtotal = validItems.reduce((total, item) => total + item.unit_price * item.quantity, 0);
 
     const totalQuantity = validItems.reduce(
         (total, item) =>
@@ -117,10 +112,12 @@ export default function CartDrawer({
     }).format(new Date());
 
     function getVariations(item: CartItem) {
+        if (!item.variant) return "";
+        const v = item.variant;
         return [
-            [item.variant1, item.value1],
-            [item.variant2, item.value2],
-            [item.variant3, item.value3],
+            [v.variant1, v.value1],
+            [v.variant2, v.value2],
+            [v.variant3, v.value3],
         ]
             .filter(([name, value]) => name && value)
             .map(([name, value]) => `${name}: ${value}`)
@@ -201,10 +198,10 @@ export default function CartDrawer({
                                 {/* Item */}
                                 <div className="flex min-w-0 items-center gap-4">
                                     <div className="relative h-20 w-20 shrink-0 bg-gray-100">
-                                        {item.image_url ? (
+                                        {item.image ? (
                                             <Image
-                                                src={item.image_url}
-                                                alt={item.product_name}
+                                                src={item.image}
+                                                alt={item.product?.product_name ?? ""}
                                                 fill
                                                 sizes="80px"
                                                 className="object-cover"
@@ -214,7 +211,7 @@ export default function CartDrawer({
 
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium">
-                                            {item.product_name}
+                                            {item.product?.product_name ?? "Unavailable item"}
                                         </p>
 
                                         {getVariations(item) && (
@@ -224,9 +221,7 @@ export default function CartDrawer({
                                         )}
 
                                         {!item.available && (
-                                            <p className="mt-1 text-xs text-red-500">
-                                                Unavailable
-                                            </p>
+                                            <p className="mt-1 text-xs text-red-500">Unavailable</p>
                                         )}
                                     </div>
                                 </div>
