@@ -25,6 +25,7 @@ const items = [
     title: "Settings",
     href: "/admin/settings",
   },
+  { title: "Navigation", href: "/admin/nav" },
 ];
 
 export default function Sidebar() {
