@@ -167,13 +167,7 @@ export default function ProductOptions({
 
         return (
             <div key={option.name}>
-                <div
-                    className={
-                        inline
-                            ? "flex items-center gap-3"
-                            : "flex flex-col gap-2"
-                    }
-                >
+                <div className={inline ? "flex items-center gap-3" : "flex flex-col gap-2"}>
                     {/* Variation name */}
                     <h2 className="shrink-0 text-sm uppercase tracking-wide">
                         {option.name}
@@ -223,35 +217,35 @@ export default function ProductOptions({
             {/* Image column */}
             <div
                 className="
-    flex
-    w-full
-    snap-x
-    snap-mandatory
-    overflow-x-auto
-    overflow-y-hidden
-    md:block
-    md:h-screen
-    md:w-[50vw]
-    md:snap-none
-    md:overflow-x-hidden
-    md:overflow-y-auto
-  "
+                flex
+                w-full
+                snap-x
+                snap-mandatory
+                overflow-x-auto
+                overflow-y-hidden
+                md:block
+                md:h-screen
+                md:w-[60vw]
+                md:snap-none
+                md:overflow-x-hidden
+                md:overflow-y-auto
+            "
             >
                 {galleryImages.length > 0 ? (
                     galleryImages.map((img, i) => (
                         <div
                             key={img.id ?? i}
                             className="
-          relative
-          aspect-[3/4]
-          w-full
-          shrink-0
-          snap-center
-          bg-gray-100
-          md:w-full
-          md:shrink
-          md:snap-none
-        "
+                relative
+                aspect-[3/4]
+                w-full
+                shrink-0
+                snap-center
+                bg-gray-100
+                md:w-full
+                md:shrink
+                md:snap-none
+                "
                         >
                             <Image
                                 src={img.url_large}
@@ -280,9 +274,9 @@ export default function ProductOptions({
                 )}
 
                 {/* Product name */}
-                <h1 className="text-3xl font-bold">
+                <p className="font-bold uppercase">
                     {product.product_name}
-                </h1>
+                </p>
 
                 {/* Price */}
                 <p className="mt-3 text-lg">
@@ -297,7 +291,7 @@ export default function ProductOptions({
 
                 {/* Description */}
                 {product.description && (
-                    <div className="mt-4 text-xs leading-6">
+                    <div className="mt-4 text-xs leading-6 whitespace-pre-line">
                         {product.description}
                     </div>
                 )}
@@ -336,7 +330,7 @@ export default function ProductOptions({
                             </p>
 
                             <button
-                                className="w-full  cursor-pointer border border-black bg-black px-4 py-3 text-sm font-medium uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-30"
+                                className="w-full cursor-pointer border border-black bg-black px-4 py-1 text-sm font-medium uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-30"
                                 disabled={selectedVariant.stock === 0}
                                 onClick={() => {
                                     addToCart(selectedVariant.id);
@@ -355,15 +349,14 @@ export default function ProductOptions({
                     )}
                 </div>
 
-                <div className="md:border-t md:border-black md:mt-10 mt-2">
+                <div className="md:mt-10 mt-2">
                     {/* Details */}
                     {product.note && (
                         <details className="mt-4">
                             <summary className="cursor-pointer py-3 text-[10px] font-medium uppercase tracking-wide">
                                 DETAILS
                             </summary>
-
-                            <div className="pb-4 text-sm leading-6 text-gray-600">
+                            <div className="pb-4 text-sm leading-6 text-gray-600 whitespace-pre-line">
                                 {product.note}
                             </div>
                         </details>

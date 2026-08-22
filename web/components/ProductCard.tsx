@@ -141,35 +141,38 @@ export default function ProductCard({
   }
 
   return (
-    <div className="group overflow-hidden">
+    <Link
+      href={`/products/${product.product_slug}`}
+    >
+      <div className="group overflow-hidden">
 
-      {/* ================= IMAGE ================= */}
-      <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+        {/* ================= IMAGE ================= */}
+        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
 
-        {currentImage ? (
-          <Image
-            src={currentImage.url_mid}
-            alt={product.product_name}
-            fill
-            sizes="(max-width: 768px) 50vw, 33vw"
-            className="object-cover"
-            priority={priority}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            No image
-          </div>
-        )}
+          {currentImage ? (
+            <Image
+              src={currentImage.url_mid}
+              alt={product.product_name}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="object-cover"
+              priority={priority}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              No image
+            </div>
+          )}
 
-        {/* ================= IMAGE ARROWS ================= */}
-        {galleryImages.length > 1 && (
-          <>
-            {/* Previous */}
-            <button
-              type="button"
-              onClick={prevImage}
-              aria-label="Previous image"
-              className="
+          {/* ================= IMAGE ARROWS ================= */}
+          {galleryImages.length > 1 && (
+            <>
+              {/* Previous */}
+              <button
+                type="button"
+                onClick={prevImage}
+                aria-label="Previous image"
+                className="
                 absolute left-3 top-1/2
                 flex h-8 w-8
                 -translate-y-1/2
@@ -181,16 +184,16 @@ export default function ProductCard({
                 duration-200
                 group-hover:opacity-100
               "
-            >
-              ‹
-            </button>
+              >
+                ‹
+              </button>
 
-            {/* Next */}
-            <button
-              type="button"
-              onClick={nextImage}
-              aria-label="Next image"
-              className="
+              {/* Next */}
+              <button
+                type="button"
+                onClick={nextImage}
+                aria-label="Next image"
+                className="
                 absolute right-3 top-1/2
                 flex h-8 w-8
                 -translate-y-1/2
@@ -202,39 +205,35 @@ export default function ProductCard({
                 duration-200
                 group-hover:opacity-100
               "
-            >
-              ›
-            </button>
-          </>
-        )}
-      </div>
+              >
+                ›
+              </button>
+            </>
+          )}
+        </div>
 
-      {/* ================= PRODUCT INFO ================= */}
-      <div className="space-y-2 p-3">
-
-        <Link
-          href={`/products/${product.product_slug}`}
-        >
-          <h2 className="text-center text-sm hover:underline">
+        {/* ================= PRODUCT INFO ================= */}
+        <div className="space-y-0 p-3">
+          <h2 className="text-center text-sm">
             {product.product_name}
           </h2>
-        </Link>
 
-        {selectedVariant ? (
-          <p className="text-center text-sm">
-            {formatPrice(
-              selectedVariant.priceVND,
-              selectedVariant.priceUSD,
-              currency
-            )}
-          </p>
-        ) : (
-          <p className="text-center text-xs text-gray-400">
-            Select options
-          </p>
-        )}
+          {selectedVariant ? (
+            <p className="text-center text-sm">
+              {formatPrice(
+                selectedVariant.priceVND,
+                selectedVariant.priceUSD,
+                currency
+              )}
+            </p>
+          ) : (
+            <p className="text-center text-xs text-gray-400">
+              Select options
+            </p>
+          )}
 
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }

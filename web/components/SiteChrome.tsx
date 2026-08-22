@@ -17,7 +17,7 @@ export default function SiteChrome({
       {!hideChrome && <Header />}
 
       <div
-        className={`flex min-h-screen flex-col ${hideChrome ? "" : "pt-16 md:ml-64 md:pt-0"
+        className={`flex min-h-screen flex-col ${hideChrome ? "" : "pt-16 md:ml-62 md:pt-0"
           }`}
       >
         <div className="flex-1">{children}</div>
