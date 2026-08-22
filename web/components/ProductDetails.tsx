@@ -349,7 +349,7 @@ export default function ProductOptions({
                     )}
                 </div>
 
-                <div className="md:mt-10 mt-2">
+                <div className="md:mt-5 mt-2">
                     {/* Details */}
                     {product.note && (
                         <details className="mt-4">

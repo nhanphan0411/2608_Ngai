@@ -11,7 +11,7 @@ export default function Footer() {
 
   return (
     <footer className="md:h-[100px] md:py-0 py-4 m h-[50vh] border-t border-black">
-      <div className="grid h-full grid-cols-1 gap-1 md:grid-cols-6 md:gap-0 ">
+      <div className="grid h-full grid-cols-1 gap-1 md:grid-cols-5 md:gap-0 ">
 
         {links.map((link) => (
           <a
@@ -34,13 +34,13 @@ export default function Footer() {
         </p>
 
         {/* BCT Logo */}
-        <div className="flex items-center justify-center px-5">
+        {/* <div className="flex items-center justify-center px-5">
           <img
             src="/bct_logo.png"
             alt="Bộ Công Thương"
             className="md:w-[50%] w-[40%]"
           />
-        </div>
+        </div> */}
 
       </div>
     </footer>
