@@ -265,7 +265,7 @@ export default function ProductOptions({
             </div>
 
             {/* Details column */}
-            <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto">
+            <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto border-l">
                 {/* Category */}
                 {product.category && (
                     <p className="mb-3 text-xs text-gray-500">

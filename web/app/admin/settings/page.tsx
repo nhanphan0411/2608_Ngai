@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 const emptySettings = {
   store_name: "",
   store_description: "",
-  contact_email: "",
-  contact_phone: "",
+  contact_info: "",
   default_currency: "VND",
   shipping_fee_vnd: 0,
   shipping_fee_usd: 0,
   payment_methods: "",
+  stock_list: "",
 };
 
 export default function SettingsPage() {
@@ -143,23 +143,26 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>Contact email</label>
-            <input
-              className={inputClass}
-              value={form.contact_email ?? ""}
-              onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Contact phone</label>
-            <input
-              className={inputClass}
-              value={form.contact_phone ?? ""}
-              onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-            />
-          </div>
+        <div className="mb-4">
+          <label className={labelClass}>Contact (one method per line, as &quot;Label: value&quot;)</label>
+          <textarea
+            className={inputClass}
+            rows={3}
+            placeholder={"Email: hello@ngai.vn\nPhone: 090 123 4567\nInstagram: @ngai.official"}
+            value={form.contact_info ?? ""}
+            onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Stock list (one store per line, as &quot;Store name: Address&quot;)</label>
+          <textarea
+            className={inputClass}
+            rows={4}
+            placeholder={"Ngài Đà Lạt: 12 Trần Phú, Đà Lạt\nNgài Sài Gòn: 45 Lê Lợi, Quận 1, TP.HCM"}
+            value={form.stock_list ?? ""}
+            onChange={(e) => setForm({ ...form, stock_list: e.target.value })}
+          />
         </div>
       </section>
 

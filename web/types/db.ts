@@ -106,12 +106,12 @@ export interface Settings {
   id: number;
   store_name: string;
   store_description: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
+  contact_info: string | null;
   default_currency: string;
   shipping_fee_vnd: number;
   shipping_fee_usd: number;
   payment_methods: string;
+  stock_list: string | null;
 }
 
 export interface VariantGroup {
