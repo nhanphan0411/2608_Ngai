@@ -87,10 +87,10 @@ export default function CollectionsPage() {
   }
 
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const selectClass =
-    "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
@@ -135,9 +135,8 @@ export default function CollectionsPage() {
                     {collections.map((c: any) => (
                       <tr
                         key={c.id}
-                        className={`border-t border-gray-100 transition hover:bg-gray-50 ${
-                          form.id === c.id ? "bg-blue-50" : ""
-                        }`}
+                        className={`border-t border-gray-100 transition hover:bg-gray-50 ${form.id === c.id ? "bg-blue-50" : ""
+                          }`}
                       >
                         <td className="p-3 text-gray-500">{c.id}</td>
 
@@ -155,11 +154,10 @@ export default function CollectionsPage() {
 
                         <td className="p-3">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${
-                              c.status === "Active"
+                            className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${c.status === "Active"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
-                            }`}
+                              }`}
                           >
                             {c.status}
                           </span>
@@ -194,9 +192,8 @@ export default function CollectionsPage() {
                 {collections.map((c: any) => (
                   <div
                     key={c.id}
-                    className={`p-4 transition ${
-                      form.id === c.id ? "bg-blue-50" : ""
-                    }`}
+                    className={`p-4 transition ${form.id === c.id ? "bg-blue-50" : ""
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -206,11 +203,10 @@ export default function CollectionsPage() {
                           </h3>
 
                           <span
-                            className={`shrink-0 px-2 py-0.5 text-[10px] font-medium ${
-                              c.status === "Active"
+                            className={`shrink-0 px-2 py-0.5 text-[10px] font-medium ${c.status === "Active"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
-                            }`}
+                              }`}
                           >
                             {c.status}
                           </span>
@@ -342,17 +338,20 @@ export default function CollectionsPage() {
       {/* ================= EDITORIAL PHOTOS ================= */}
       {/* Full-width (not boxed inside max-w-5xl above) so the live preview
           renders at the same width the real collection page would use. */}
-
-      {form.id && (
-        <div className="mb-12">
-          <CollectionPhotoManager
-            collectionId={form.id}
-            collectionSlug={form.collection_slug}
-            layoutStyle={form.layout_style ?? "grid"}
-            onLayoutStyleChange={handleLayoutStyleChange}
-          />
+      <section className="mb-8 border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
+        <div className="mb-4 sm:mb-5">
+          {form.id && (
+            <div className="mb-12">
+              <CollectionPhotoManager
+                collectionId={form.id}
+                collectionSlug={form.collection_slug}
+                layoutStyle={form.layout_style ?? "grid"}
+                onLayoutStyleChange={handleLayoutStyleChange}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </section>
     </div>
   );
 }

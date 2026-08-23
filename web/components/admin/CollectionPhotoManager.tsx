@@ -182,13 +182,10 @@ export default function CollectionPhotoManager({
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Editorial Photos</h2>
-          <p className="mt-1 text-xs text-gray-500">
-            Shown at the top of this collection&apos;s page, above the products.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1 text-sm">
+          <div className="flex items-center gap-2 border border-gray-200 bg-gray-50 p-1 text-sm">
             <button
               type="button"
               onClick={() => onLayoutStyleChange("grid")}
@@ -212,7 +209,7 @@ export default function CollectionPhotoManager({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            className="border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
           >
             + Upload Photos
           </button>
@@ -229,7 +226,7 @@ export default function CollectionPhotoManager({
             type="button"
             disabled={!dirty || syncing}
             onClick={handleSave}
-            className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="bg-green-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {syncing ? "Saving…" : "Save Photos"}
           </button>
@@ -237,14 +234,13 @@ export default function CollectionPhotoManager({
       </div>
 
       {error && (
-        <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+        <p className="mb-3 bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
 
       {layoutStyle === "grid" ? (
         <>
           <p className="mb-2 text-xs text-gray-400">
-            This is the real page layout — drag a photo onto another cell to reorder. Hover a
-            photo to remove it.
+            PREVIEW: Drag to re-order; Hover to find remove button.
           </p>
 
           {/* ================= GRID: LIVE, EDITABLE CANVAS ================= */}
@@ -259,7 +255,7 @@ export default function CollectionPhotoManager({
               }}
               onDragLeave={() => setDragOverCanvas(false)}
               onDrop={handleCanvasDrop}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-4 py-16 text-center text-sm transition ${
+              className={`flex flex-col items-center justify-center gap-1 border-2 border-dashed px-4 py-16 text-center text-sm transition ${
                 dragOverCanvas ? "border-black bg-gray-50 text-gray-900" : "border-gray-300 text-gray-400"
               }`}
             >
@@ -327,7 +323,7 @@ export default function CollectionPhotoManager({
             }}
             onDragLeave={() => setDragOverCanvas(false)}
             onDrop={handleCanvasDrop}
-            className={`flex min-h-[7rem] flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-3 transition ${
+            className={`flex min-h-[7rem] flex-wrap gap-2 border border-gray-200 bg-white p-3 transition ${
               dragOverCanvas ? "outline outline-2 outline-black" : ""
             }`}
           >
@@ -371,7 +367,7 @@ export default function CollectionPhotoManager({
                 <button
                   type="button"
                   onClick={() => setShuffleKey((k) => k + 1)}
-                  className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                  className="border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
                 >
                   Shuffle preview
                 </button>

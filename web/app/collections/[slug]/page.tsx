@@ -38,8 +38,12 @@ export default async function CollectionPage({
   const photos = await getCollectionPhotos(collection.id);
 
   return (
-    <main className="max-w-5xl mx-auto p-10">
-      <h1 className="text-3xl font-bold mb-8">{collection.collection_name}</h1>
+    <main className="max-w-5xl mx-auto px-30 py-20">
+      <h1 className="text-2xl mb-[10vh] w-full flex justify-between">
+        {collection.collection_name.split("").map((char, i) => (
+          <span key={i}>{char === " " ? "\u00A0" : char}</span>
+        ))}
+      </h1>
 
       {photos.length > 0 && (
         <div className="mb-10">

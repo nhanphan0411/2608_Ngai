@@ -10,7 +10,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="md:h-[100px] md:py-0 py-4 h-auto border-t border-black">
+    <footer className="md:h-[100px] md:py-0 py-4 max-sm:py-20 h-auto border-t border-black">
       <div className="grid sm:h-full h-auto sm:gap-0 gap-4 grid-cols-1 md:grid-cols-5">
 
         {links.map((link) => (
