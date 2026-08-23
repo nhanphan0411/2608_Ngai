@@ -10,7 +10,8 @@ export default function SiteChrome({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const hideChrome = pathname === "/" || pathname.startsWith("/admin");
+  const hideChrome =
+    pathname === "/" || pathname === "/home" || pathname.startsWith("/admin");
 
   return (
     <>

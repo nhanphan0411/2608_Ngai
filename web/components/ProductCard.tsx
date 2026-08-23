@@ -177,7 +177,7 @@ export default function ProductCard({
                 flex h-8 w-8
                 -translate-y-1/2
                 items-center justify-center
-                cursor-e-resize
+                cursor-w-resize
                 text-2xl
                 opacity-0
                 transition-opacity

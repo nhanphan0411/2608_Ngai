@@ -9,6 +9,7 @@ const google_sans_code = Google_Sans_Code({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   style: ["normal", "italic"],
+  adjustFontFallback: false
 });
 
 export const metadata: Metadata = {
