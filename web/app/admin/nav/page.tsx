@@ -83,7 +83,7 @@ export default function NavAdminPage() {
         <div className="space-y-6">
           {items.map((item, index) => (
             <div key={index} className="border border-gray-100 bg-gray-50 p-3 sm:p-4">
-              <div className="mb-3">
+              <div className="mb-3 flex">
                 <div className="grid grid-cols-2 gap-2">
                   <input className={inputClass} placeholder="SHOP" value={item.label} onChange={(e) => updateTopLevel(index, { label: e.target.value })} />
                   <input className={inputClass + " truncate"} placeholder="/products" value={item.href ?? ""} onChange={(e) => updateTopLevel(index, { href: e.target.value })} />
@@ -98,7 +98,7 @@ export default function NavAdminPage() {
 
               <div className="ml-0 sm:ml-6 space-y-2">
                 {item.children.map((child, childIndex) => (
-                  <div key={childIndex}>
+                  <div key={childIndex} className="flex">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-300 text-xs shrink-0">└</span>
                       <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">

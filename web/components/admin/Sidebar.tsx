@@ -107,7 +107,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className=" m-4 w-[80%] border-t border-l border-r">
+        <nav className=" m-4 w-[60%] border-t border-l border-r">
           {items.map((item) => {
             const active = pathname.startsWith(item.href);
 
