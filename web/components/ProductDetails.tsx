@@ -213,7 +213,7 @@ export default function ProductOptions({
     }
 
     return (
-        <div className="md:flex md:h-screen md:min-h-0">
+        <div className="md:flex md:h-screen md:min-h-0 max-sm:mb-[20vh]">
             {/* Image column */}
             <div
                 className="
@@ -265,7 +265,7 @@ export default function ProductOptions({
             </div>
 
             {/* Details column */}
-            <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto border-l">
+            <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto sm:border-l border-none">
                 {/* Category */}
                 {product.category && (
                     <p className="mb-3 text-xs text-gray-500">

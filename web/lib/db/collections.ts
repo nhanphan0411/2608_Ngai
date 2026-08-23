@@ -2,6 +2,7 @@ import { getDB } from "@/lib/d1";
 import type { Collection } from "@/types/db";
 import { queryAll } from "@/lib/d1";
 import { getProductsByCollectionAdmin, deleteProduct } from "@/lib/db/products";
+import { deleteCollectionPhotosForCollection } from "@/lib/db/collectionPhotos";
 
 export async function getCollection(id: number): Promise<Collection | null> {
   const db = await getDB();
@@ -52,14 +53,15 @@ export async function createCollection(collection: Omit<Collection, "id">) {
 
   await db.prepare(`
     INSERT INTO collections (
-      collection_name, collection_slug, description, status
-    ) VALUES (?, ?, ?, ?)
+      collection_name, collection_slug, description, status, layout_style
+    ) VALUES (?, ?, ?, ?, ?)
   `)
   .bind(
     collection.collection_name,
     collection.collection_slug,
     collection.description,
-    collection.status
+    collection.status,
+    collection.layout_style ?? "grid"
   )
   .run();
 }
@@ -81,7 +83,7 @@ export async function updateCollection(collection: Collection) {
 
   await db.prepare(`
     UPDATE collections
-    SET collection_name = ?, collection_slug = ?, description = ?, status = ?
+    SET collection_name = ?, collection_slug = ?, description = ?, status = ?, layout_style = ?
     WHERE id = ?
   `)
   .bind(
@@ -89,6 +91,7 @@ export async function updateCollection(collection: Collection) {
     collection.collection_slug,
     collection.description,
     collection.status,
+    collection.layout_style ?? "grid",
     collection.id
   )
   .run();
@@ -114,6 +117,8 @@ export async function deleteCollection(id: number) {
   for (const product of products) {
     await deleteProduct(product.id);
   }
+
+  await deleteCollectionPhotosForCollection(id);
 
   await db.prepare(`DELETE FROM collections WHERE id = ?`).bind(id).run();
 }

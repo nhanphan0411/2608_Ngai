@@ -1,9 +1,25 @@
+export type CollectionLayoutStyle = "grid" | "random";
+
 export interface Collection {
   id: number;
   collection_name: string;
   collection_slug: string;
   description: string | null;
   status: string;
+  layout_style: CollectionLayoutStyle;
+}
+
+export interface CollectionPhoto {
+  id: number;
+  collection_id: number;
+  r2_key_thumb: string;
+  r2_key_mid: string;
+  r2_key_large: string;
+  url_thumb: string;
+  url_mid: string;
+  url_large: string;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface Product {

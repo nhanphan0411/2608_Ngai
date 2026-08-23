@@ -2,8 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { getProductsByCollectionPaginated, PRODUCTS_PAGE_SIZE } from "@/lib/db/products";
 import { getCollectionBySlug } from "@/lib/db/collections";
+import { getCollectionPhotos } from "@/lib/db/collectionPhotos";
 import { buildProductCards } from "@/lib/db/productCards";
 import ProductGrid from "@/components/ProductGrid";
+import CollectionGallery from "@/components/CollectionGallery";
 import { notFound } from "next/navigation";
 
 import type { Metadata } from "next";
@@ -33,10 +35,20 @@ export default async function CollectionPage({
 
   const { products, total } = await getProductsByCollectionPaginated(collection.id, page);
   const cards = await buildProductCards(products);
+  const photos = await getCollectionPhotos(collection.id);
 
   return (
     <main className="max-w-5xl mx-auto p-10">
       <h1 className="text-3xl font-bold mb-8">{collection.collection_name}</h1>
+
+      {photos.length > 0 && (
+        <div className="mb-10">
+          <CollectionGallery
+            photos={photos.map((p) => ({ id: p.id, url: p.url_mid || p.url_large || p.url_thumb }))}
+            layoutStyle={collection.layout_style}
+          />
+        </div>
+      )}
 
       <ProductGrid
         cards={cards}
