@@ -106,7 +106,7 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">Settings</h1>
+      <h1 className="text-3xl max-sm:text-right  font-bold mb-6 text-gray-900">Settings</h1>
 
       <section className="flex sm:flex-row flex-col border border-gray-200 bg-white shadow-sm p-6 mb-8">
         <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Store info</h2>

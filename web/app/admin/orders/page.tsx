@@ -33,7 +33,7 @@ export default function OrdersPage() {
 
   return (
     <div className="max-w-6xl">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">
+      <h1 className="text-3xl max-sm:text-right  font-bold mb-6 text-gray-900">
         Orders
       </h1>
 

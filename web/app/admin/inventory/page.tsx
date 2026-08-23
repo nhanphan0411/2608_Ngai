@@ -425,7 +425,7 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Inventory</h1>
+      <h1 className="mb-6 text-2xl max-sm:text-right  font-semibold text-gray-900">Inventory</h1>
 
       <div className="mb-6 flex flex-col gap-3 border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex w-full flex-col sm:w-auto">

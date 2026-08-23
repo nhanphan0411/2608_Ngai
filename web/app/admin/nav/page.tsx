@@ -10,9 +10,7 @@ export default function NavAdminPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/nav")
-      .then((r) => r.json())
-      .then((data) => setItems(data as NavItem[]));
+    fetch("/api/admin/nav").then((r) => r.json()).then((data) => setItems(data as NavItem[]));
   }, []);
 
   function addTopLevel() {
@@ -28,32 +26,15 @@ export default function NavAdminPage() {
   }
 
   function addChild(parentIndex: number) {
-    setItems((prev) =>
-      prev.map((item, i) =>
-        i === parentIndex ? { ...item, children: [...item.children, { label: "", href: "" }] } : item
-      )
-    );
+    setItems((prev) => prev.map((item, i) => i === parentIndex ? { ...item, children: [...item.children, { label: "", href: "" }] } : item));
   }
 
   function updateChild(parentIndex: number, childIndex: number, patch: Partial<Child>) {
-    setItems((prev) =>
-      prev.map((item, i) =>
-        i === parentIndex
-          ? {
-              ...item,
-              children: item.children.map((c, ci) => (ci === childIndex ? { ...c, ...patch } : c)),
-            }
-          : item
-      )
-    );
+    setItems((prev) => prev.map((item, i) => i === parentIndex ? { ...item, children: item.children.map((c, ci) => ci === childIndex ? { ...c, ...patch } : c) } : item));
   }
 
   function removeChild(parentIndex: number, childIndex: number) {
-    setItems((prev) =>
-      prev.map((item, i) =>
-        i === parentIndex ? { ...item, children: item.children.filter((_, ci) => ci !== childIndex) } : item
-      )
-    );
+    setItems((prev) => prev.map((item, i) => i === parentIndex ? { ...item, children: item.children.filter((_, ci) => ci !== childIndex) } : item));
   }
 
   function move<T>(arr: T[], from: number, to: number): T[] {
@@ -69,24 +50,16 @@ export default function NavAdminPage() {
   }
 
   function moveChild(parentIndex: number, childIndex: number, direction: -1 | 1) {
-    setItems((prev) =>
-      prev.map((item, i) =>
-        i === parentIndex ? { ...item, children: move(item.children, childIndex, childIndex + direction) } : item
-      )
-    );
+    setItems((prev) => prev.map((item, i) => i === parentIndex ? { ...item, children: move(item.children, childIndex, childIndex + direction) } : item));
   }
 
   async function saveAll() {
     setSaving(true);
-    const cleaned = items
-      .filter((item) => item.label.trim())
-      .map((item) => ({
-        label: item.label.trim(),
-        href: item.href?.trim() || null,
-        children: item.children
-          .filter((c) => c.label.trim())
-          .map((c) => ({ label: c.label.trim(), href: c.href?.trim() || null })),
-      }));
+    const cleaned = items.filter((item) => item.label.trim()).map((item) => ({
+      label: item.label.trim(),
+      href: item.href?.trim() || null,
+      children: item.children.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim(), href: c.href?.trim() || null })),
+    }));
 
     await fetch("/api/admin/nav", {
       method: "PUT",
@@ -98,82 +71,60 @@ export default function NavAdminPage() {
     setSaving(false);
   }
 
-  const inputClass =
-    "border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const inputClass = "border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0 w-full";
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">Navigation</h1>
+    <div className="w-full max-w-3xl">
+      <h1 className="text-3xl max-sm:text-right font-bold mb-6 text-gray-900">Navigation</h1>
 
-      <section className="border border-gray-200 bg-white shadow-sm p-6 mb-6">
-        {items.length === 0 && (
-          <p className="text-sm text-gray-400 mb-4">No nav items yet — add one below.</p>
-        )}
+      <section className="border border-gray-200 bg-white shadow-sm p-4 sm:p-6 mb-6">
+        {items.length === 0 && <p className="text-sm text-gray-400 mb-4">No nav items yet — add one below.</p>}
 
         <div className="space-y-6">
           {items.map((item, index) => (
-            <div key={index} className="border border-gray-100 bg-gray-50 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <input
-                  className={inputClass + " flex-1"}
-                  placeholder="SHOP"
-                  value={item.label}
-                  onChange={(e) => updateTopLevel(index, { label: e.target.value })}
-                />
-                <input
-                  className={inputClass + " flex-1"}
-                  placeholder="/products (optional if just a dropdown label)"
-                  value={item.href ?? ""}
-                  onChange={(e) => updateTopLevel(index, { href: e.target.value })}
-                />
-                <button onClick={() => moveTopLevel(index, -1)} className="text-gray-400 hover:text-gray-800 px-1">↑</button>
-                <button onClick={() => moveTopLevel(index, 1)} className="text-gray-400 hover:text-gray-800 px-1">↓</button>
-                <button onClick={() => removeTopLevel(index)} className="text-red-500 hover:text-red-700 text-xs px-2">Delete</button>
+            <div key={index} className="border border-gray-100 bg-gray-50 p-3 sm:p-4">
+              <div className="mb-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <input className={inputClass} placeholder="SHOP" value={item.label} onChange={(e) => updateTopLevel(index, { label: e.target.value })} />
+                  <input className={inputClass + " truncate"} placeholder="/products" value={item.href ?? ""} onChange={(e) => updateTopLevel(index, { href: e.target.value })} />
+                </div>
+
+                <div className="flex items-center gap-1 mt-2">
+                  <button onClick={() => moveTopLevel(index, -1)} className="text-gray-400 hover:text-gray-800 px-2 py-1.5 text-sm">↑</button>
+                  <button onClick={() => moveTopLevel(index, 1)} className="text-gray-400 hover:text-gray-800 px-2 py-1.5 text-sm">↓</button>
+                  <button onClick={() => removeTopLevel(index)} className="text-red-500 hover:text-red-700 text-xs px-2 py-1.5">Delete</button>
+                </div>
               </div>
 
-              <div className="ml-6 space-y-2">
+              <div className="ml-0 sm:ml-6 space-y-2">
                 {item.children.map((child, childIndex) => (
-                  <div key={childIndex} className="flex items-center gap-2">
-                    <span className="text-gray-300 text-xs">└</span>
-                    <input
-                      className={inputClass + " flex-1"}
-                      placeholder="ALL"
-                      value={child.label}
-                      onChange={(e) => updateChild(index, childIndex, { label: e.target.value })}
-                    />
-                    <input
-                      className={inputClass + " flex-1"}
-                      placeholder="/products"
-                      value={child.href ?? ""}
-                      onChange={(e) => updateChild(index, childIndex, { href: e.target.value })}
-                    />
-                    <button onClick={() => moveChild(index, childIndex, -1)} className="text-gray-400 hover:text-gray-800 px-1">↑</button>
-                    <button onClick={() => moveChild(index, childIndex, 1)} className="text-gray-400 hover:text-gray-800 px-1">↓</button>
-                    <button onClick={() => removeChild(index, childIndex)} className="text-red-500 hover:text-red-700 text-xs px-2">Delete</button>
+                  <div key={childIndex}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-300 text-xs shrink-0">└</span>
+                      <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
+                        <input className={inputClass} placeholder="ALL" value={child.label} onChange={(e) => updateChild(index, childIndex, { label: e.target.value })} />
+                        <input className={inputClass + " truncate"} placeholder="/products" value={child.href ?? ""} onChange={(e) => updateChild(index, childIndex, { href: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 ml-5 mt-1">
+                      <button onClick={() => moveChild(index, childIndex, -1)} className="text-gray-400 hover:text-gray-800 px-2 py-1.5 text-sm">↑</button>
+                      <button onClick={() => moveChild(index, childIndex, 1)} className="text-gray-400 hover:text-gray-800 px-2 py-1.5 text-sm">↓</button>
+                      <button onClick={() => removeChild(index, childIndex)} className="text-red-500 hover:text-red-700 text-xs px-2 py-1.5">Delete</button>
+                    </div>
                   </div>
                 ))}
 
-                <button onClick={() => addChild(index)} className="text-xs text-blue-600 hover:text-blue-800">
-                  + Add sub-item
-                </button>
+                <button onClick={() => addChild(index)} className="text-xs text-blue-600 hover:text-blue-800 mt-1">+ Add sub-item</button>
               </div>
             </div>
           ))}
         </div>
 
-        <button
-          onClick={addTopLevel}
-          className="mt-4 border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900"
-        >
-          + Add top-level item
-        </button>
+        <button onClick={addTopLevel} className="mt-4 border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900">+ Add top-level item</button>
       </section>
 
-      <button
-        onClick={saveAll}
-        disabled={saving}
-        className="bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-      >
+      <button onClick={saveAll} disabled={saving} className="bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
         {saving ? "Saving…" : "Save navigation"}
       </button>
     </div>

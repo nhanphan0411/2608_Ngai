@@ -97,7 +97,7 @@ export default function CollectionsPage() {
   return (
     <div className="w-full">
       <div className="w-full">
-        <h1 className="mb-5 text-xl font-semibold text-gray-900 sm:mb-6">
+        <h1 className="mb-5 text-xl max-sm:text-right font-semibold text-gray-900 sm:mb-6">
           Collections
         </h1>
 

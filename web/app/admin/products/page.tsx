@@ -141,7 +141,7 @@ export default function ProductsPage() {
     <div className="w-full">
       {/* ================= PAGE HEADER ================= */}
 
-      <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
+      <div className="mb-5 flex items-center sm:justify-between max-sm:justify-end gap-3 sm:mb-6">
         <h1 className="text-xl font-semibold text-gray-900">
           Products
         </h1>
