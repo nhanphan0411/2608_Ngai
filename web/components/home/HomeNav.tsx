@@ -5,11 +5,11 @@ import { useState } from "react";
 import RegionSelect from "./RegionSelect";
 
 const navLinkClass =
-  "flex items-center justify-start bg-[#F6F2EF] px-3 py-1 text-sm uppercase tracking-wide leading-none text-left";
+  "flex items-center justify-start bg-[#F2F2F2]  px-3 py-1 text-sm uppercase tracking-wide leading-none text-left";
 
 export function DesktopNav() {
   return (
-    <nav className="grid w-full grid-cols-4 gap-2">
+    <nav className="grid w-full grid-cols-4 gap-2 ">
       <Link href="/products" className={navLinkClass}>
         shop
       </Link>
@@ -22,7 +22,7 @@ export function DesktopNav() {
         about
       </Link>
 
-      <div className="flex min-w-0 items-center justify-start bg-white px-3 py-0">
+      <div className="flex min-w-0 items-center justify-start px-3 py-0 bg-[#F2F2F2] ">
         <RegionSelect className="w-full min-w-0 text-left" />
       </div>
     </nav>

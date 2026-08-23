@@ -50,7 +50,7 @@ export default function Header() {
       type="button"
       onClick={() => setCartOpen(true)}
       aria-label={`Open cart${cartCount > 0 ? `, ${cartCount} items` : ""}`}
-      className="flex w-full items-center justify-between border-b border-black px-2 py-1 text-left text-sm hover:bg-gray-100"
+      className="flex w-full items-center justify-between border-b border-black px-2 py-1 text-left text-sm hover:bg-gray-100 cursor-pointer"
     >
       <span>CART</span>
       {cartCount > 0 && <span>{cartCount}</span>}
@@ -66,7 +66,7 @@ export default function Header() {
           key={item.label}
           href={item.href ?? "#"}
           onClick={onNavigate}
-          className={`block border-b border-black px-2 py-1 text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100"
+          className={`block border-b border-black px-2 py-1 text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
             }`}
         >
           {item.label}
@@ -80,7 +80,7 @@ export default function Header() {
           type="button"
           onClick={() => toggleGroup(item.label)}
           aria-expanded={isOpen}
-          className={`flex w-full items-center justify-between border-b border-black px-2 py-1 text-left text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100"
+          className={`flex w-full items-center justify-between border-b border-black px-2 py-1 text-left text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
             }`}
         >
           <span>{item.label}</span>
@@ -198,7 +198,6 @@ export default function Header() {
           {navTree.map((item) => (
             <div key={item.label}>
               {renderNavGroup(item, () => { })}
-
               {item.label.toLowerCase() === "about" && desktopCart}
             </div>
           ))}
