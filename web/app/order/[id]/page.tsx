@@ -60,7 +60,7 @@ export default async function OrderPage({
               </p>
 
               <h1 className="mt-2 text-2xl font-medium">
-                Thank you!
+                Thank you
               </h1>
 
             </div>

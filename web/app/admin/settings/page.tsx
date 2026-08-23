@@ -144,7 +144,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="mb-4">
-            <label className={labelClass}>Contact (one method per line, as &quot;Label: value&quot;)</label>
+            <label className={labelClass}>Contact (one method per line, as &quot;Contact method: Value&quot;)</label>
             <textarea
               className={inputClass}
               rows={3}
@@ -240,7 +240,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="flex sm:flex-row flex-col  border border-gray-200 bg-white shadow-sm p-6 mb-8">
+      {/* <section className="flex sm:flex-row flex-col  border border-gray-200 bg-white shadow-sm p-6 mb-8">
         <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Payment methods</h2>
         <div className="sm:w-[80%] w-full">
         <div className="border border-gray-300 px-3 py-2 flex flex-wrap gap-2 items-center">
@@ -273,7 +273,7 @@ export default function SettingsPage() {
           These show up as options on the checkout page, in this order.
         </p>
         </div>
-      </section>
+      </section> */}
 
       <div className="flex items-center gap-4">
         <button

@@ -117,10 +117,11 @@ export default function OrdersPage() {
                   </td>
 
                   <td className="p-3">
-                    <div className="flex justify-end">
+                    <div className="flex items-center">
                       <Link
                         href={`/order/${o.public_id}`}
                         className="text-sm text-gray-600 hover:text-gray-900"
+                        target="_blank"
                       >
                         View
                       </Link>
