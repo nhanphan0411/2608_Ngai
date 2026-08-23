@@ -2,7 +2,10 @@ import { getDB } from "@/lib/d1";
 import type { Collection } from "@/types/db";
 import { queryAll } from "@/lib/d1";
 import { getProductsByCollectionAdmin, deleteProduct } from "@/lib/db/products";
-import { deleteCollectionPhotosForCollection } from "@/lib/db/collectionPhotos";
+import {
+  deleteCollectionPhotosForCollection,
+  renameCollectionPhotosFolder,
+} from "@/lib/db/collectionPhotos";
 
 export async function getCollection(id: number): Promise<Collection | null> {
   const db = await getDB();
@@ -68,18 +71,20 @@ export async function createCollection(collection: Omit<Collection, "id">) {
 
 /**
  * Updates a collection. If the slug changed, cascades that rename to
- * products.collection_slug (read by the public/admin product-by-collection
- * queries) and inventory.collection_slug (a denormalized copy, unread
- * today but kept truthful) — otherwise both go stale and silently stop
- * matching the renamed collection.
- */
-/**
- * Updates a collection. No cascade needed — products reference
- * collection_id (immutable), so renaming collection_slug or
- * collection_name here doesn't touch any child rows at all.
+ * the collection's editorial-photo R2 folder (Collections/{slug}/...)
+ * so photo objects and their stored keys/urls stay in sync with the
+ * collection's current identity — otherwise photos keep working but
+ * silently sit under a now-stale folder name. Products are unaffected:
+ * they reference collection_id (immutable) and their own R2 folder is
+ * keyed by product slug, not collection slug.
  */
 export async function updateCollection(collection: Collection) {
   const db = await getDB();
+
+  const existing = (await db
+    .prepare(`SELECT * FROM collections WHERE id = ? LIMIT 1`)
+    .bind(collection.id)
+    .first()) as Collection | null;
 
   await db.prepare(`
     UPDATE collections
@@ -95,19 +100,22 @@ export async function updateCollection(collection: Collection) {
     collection.id
   )
   .run();
+
+  if (existing && existing.collection_slug !== collection.collection_slug) {
+    await renameCollectionPhotosFolder(
+      collection.id,
+      existing.collection_slug,
+      collection.collection_slug
+    );
+  }
 }
 
 /**
  * Deletes a collection and cascades to every product under it (which
- * in turn cascades to that product's inventory and images). WITHOUT
+ * in turn cascades to that product's inventory and images), plus this
+ * collection's own editorial photos and their R2 objects. WITHOUT
  * this, deleting a collection leaves every one of its products,
- * variants, and images as invisible orphans.
- */
-/**
- * Deletes a collection and cascades to every product under it (which
- * in turn cascades to that product's inventory and images). WITHOUT
- * this, deleting a collection leaves every one of its products,
- * variants, and images as invisible orphans.
+ * variants, images, and photos as invisible orphans.
  */
 export async function deleteCollection(id: number) {
   const db = await getDB();

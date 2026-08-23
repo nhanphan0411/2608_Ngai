@@ -37,7 +37,7 @@ export default function OrdersPage() {
         Orders
       </h1>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <section className="border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">
             Order History
@@ -93,7 +93,7 @@ export default function OrdersPage() {
                     <select
                       value={o.payment_status}
                       onChange={(e) => updateStatus(o.id, e.target.value)}
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium border-0 ${o.payment_status === "Paid"
+                      className={`px-2.5 py-0.5 text-xs font-medium border-0 ${o.payment_status === "Paid"
                           ? "bg-green-100 text-green-700"
                           : o.payment_status === "Shipped"
                             ? "bg-blue-100 text-blue-700"

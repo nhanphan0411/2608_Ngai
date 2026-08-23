@@ -1,5 +1,5 @@
 import { getDB, queryAll, queryFirst } from "@/lib/d1";
-import { deleteImagesSafe } from "@/engine/cloudfare/r2";
+import { deleteImagesSafe, renameImageSafe } from "@/engine/cloudfare/r2";
 import type { CollectionPhoto } from "@/types/db";
 
 /**
@@ -132,4 +132,78 @@ export async function deleteCollectionPhotosForCollection(
       [p.r2_key_thumb, p.r2_key_mid, p.r2_key_large].filter(Boolean)
     )
   );
+}
+
+/**
+ * Called when a collection's slug changes. R2 objects for its photos
+ * live under `Collections/{slug}/...`, so a slug change would otherwise
+ * silently leave every photo's key/url pointing at the old folder name
+ * — still working, but drifted from the collection's current identity.
+ * This renames each object in place (R2 copy+delete) and updates the
+ * matching DB row so keys/urls stay truthful.
+ *
+ * Best-effort per object: if a given rename fails, that one photo size
+ * is left pointing at its old (still valid) key/url rather than the
+ * whole operation failing partway through.
+ */
+export async function renameCollectionPhotosFolder(
+  collectionId: number,
+  oldSlug: string,
+  newSlug: string
+): Promise<void> {
+  if (oldSlug === newSlug) return;
+
+  const photos = await getCollectionPhotos(collectionId);
+  if (photos.length === 0) return;
+
+  const oldBase = `Collections/${oldSlug}/`;
+  const newBase = `Collections/${newSlug}/`;
+
+  async function renameOne(oldKey: string): Promise<{ key: string; url: string | null }> {
+    if (!oldKey || !oldKey.startsWith(oldBase)) {
+      // Doesn't match the expected prefix — leave it untouched rather
+      // than guessing at a rewrite.
+      return { key: oldKey, url: null };
+    }
+
+    const newKey = newBase + oldKey.slice(oldBase.length);
+    const newUrl = await renameImageSafe(oldKey, newKey);
+
+    // Rename failed: keep the old (still-valid) key so nothing breaks.
+    return newUrl ? { key: newKey, url: newUrl } : { key: oldKey, url: null };
+  }
+
+  const db = await getDB();
+  const stmt = db.prepare(`
+    UPDATE collection_photos
+    SET r2_key_thumb = ?, r2_key_mid = ?, r2_key_large = ?,
+        url_thumb = ?, url_mid = ?, url_large = ?
+    WHERE id = ?
+  `);
+
+  const batch = [];
+
+  for (const photo of photos) {
+    const [thumb, mid, large] = await Promise.all([
+      renameOne(photo.r2_key_thumb),
+      renameOne(photo.r2_key_mid),
+      renameOne(photo.r2_key_large),
+    ]);
+
+    batch.push(
+      stmt.bind(
+        thumb.key,
+        mid.key,
+        large.key,
+        thumb.url ?? photo.url_thumb,
+        mid.url ?? photo.url_mid,
+        large.url ?? photo.url_large,
+        photo.id
+      )
+    );
+  }
+
+  if (batch.length > 0) {
+    await db.batch(batch);
+  }
 }

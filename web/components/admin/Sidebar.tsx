@@ -37,7 +37,7 @@ export default function Sidebar() {
       {/* Mobile menu button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm md:hidden"
+        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center border border-gray-200 bg-white text-gray-700 shadow-sm md:hidden"
         aria-label="Open menu"
       >
         <svg
@@ -86,7 +86,7 @@ export default function Sidebar() {
           {/* Close button — mobile only */}
           <button
             onClick={() => setOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 md:hidden"
+            className="flex h-8 w-8 items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-900 md:hidden"
             aria-label="Close menu"
           >
             <svg
@@ -107,7 +107,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="space-y-1 p-3">
+        <nav className=" m-4 w-[80%] border-t border-l border-r">
           {items.map((item) => {
             const active = pathname.startsWith(item.href);
 
@@ -116,8 +116,9 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`block rounded-lg px-4 py-3 transition ${
-                  active
+                className={`block px-4 py-2 transition text-sm 
+                            border-b        
+                  ${active
                     ? "bg-black text-white"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}

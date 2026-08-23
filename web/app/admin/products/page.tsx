@@ -126,10 +126,10 @@ export default function ProductsPage() {
   }
 
   const selectClass =
-    "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
+    "border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
 
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
@@ -138,7 +138,7 @@ export default function ProductsPage() {
   )?.collection_name;
 
   return (
-    <div className="w-full max-w-5xl">
+    <div className="w-full">
       {/* ================= PAGE HEADER ================= */}
 
       <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
@@ -149,7 +149,7 @@ export default function ProductsPage() {
         {collectionId && (
           <button
             onClick={newProduct}
-            className="rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-green-700 sm:px-4 sm:text-sm"
+            className="bg-green-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-green-700 sm:px-4 sm:text-sm"
           >
             + New Product
           </button>
@@ -158,7 +158,7 @@ export default function ProductsPage() {
 
       {/* ================= COLLECTION PICKER ================= */}
 
-      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-8 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mb-6 flex flex-col gap-3 border border-gray-200 bg-white p-4 shadow-sm sm:mb-8 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Collection</label>
 
@@ -182,7 +182,7 @@ export default function ProductsPage() {
       {/* ================= NO COLLECTION ================= */}
 
       {!collectionId && (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 sm:p-10">
+        <div className="border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 sm:p-10">
           Select a collection above to manage its products.
         </div>
       )}
@@ -191,7 +191,7 @@ export default function ProductsPage() {
         <>
           {/* ================= PRODUCTS ================= */}
 
-          <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <section className="mb-8 overflow-hidden border border-gray-200 bg-white shadow-sm">
 
             {products.length === 0 ? (
               <div className="p-8 text-center text-sm text-gray-400">
@@ -243,7 +243,7 @@ export default function ProductsPage() {
                                   {cats.map((c: string) => (
                                     <span
                                       key={c}
-                                      className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                                      className="bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
                                     >
                                       {c}
                                     </span>
@@ -268,7 +268,7 @@ export default function ProductsPage() {
 
                             <td className="p-3">
                               <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${p.status === "Active"
+                                className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${p.status === "Active"
                                   ? "bg-green-100 text-green-700"
                                   : "bg-gray-100 text-gray-500"
                                   }`}
@@ -281,14 +281,14 @@ export default function ProductsPage() {
                               <div className="flex justify-end gap-2">
                                 <button
                                   onClick={() => editProduct(p)}
-                                  className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                                  className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
                                 >
                                   Edit
                                 </button>
 
                                 <button
                                   onClick={() => deleteProductRow(p.id)}
-                                  className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
+                                  className="border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
                                 >
                                   Delete
                                 </button>
@@ -322,7 +322,7 @@ export default function ProductsPage() {
                               </h3>
 
                               <span
-                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${p.status === "Active"
+                                className={`shrink-0 px-2 py-0.5 text-[10px] font-medium ${p.status === "Active"
                                   ? "bg-green-100 text-green-700"
                                   : "bg-gray-100 text-gray-500"
                                   }`}
@@ -339,14 +339,14 @@ export default function ProductsPage() {
                           <div className="flex shrink-0 gap-2">
                             <button
                               onClick={() => editProduct(p)}
-                              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                              className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
                             >
                               Edit
                             </button>
 
                             <button
                               onClick={() => deleteProductRow(p.id)}
-                              className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                              className="border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
                             >
                               Delete
                             </button>
@@ -360,7 +360,7 @@ export default function ProductsPage() {
                                 {cats.map((c: string) => (
                                   <span
                                     key={c}
-                                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                                    className="bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
                                   >
                                     {c}
                                   </span>
@@ -412,7 +412,7 @@ export default function ProductsPage() {
           }}
         >
           <div
-            className="flex h-full w-full flex-col bg-white sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:shadow-xl"
+            className="flex h-full w-full flex-col bg-white sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:shadow-xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
             {/* ================= MODAL HEADER ================= */}
@@ -432,7 +432,7 @@ export default function ProductsPage() {
 
               <button
                 onClick={closeEditor}
-                className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center text-xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                 aria-label="Close"
               >
                 ×
@@ -486,7 +486,7 @@ export default function ProductsPage() {
                   Category
                 </label>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-gray-300 px-3 py-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 border border-gray-300 px-3 py-3">
                   {CATEGORIES.map((cat) => {
                     const selected = form.category
                       ? form.category
@@ -633,14 +633,14 @@ export default function ProductsPage() {
             <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4">
               <button
                 onClick={closeEditor}
-                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 sm:w-auto"
+                className="w-full border border-gray-200 px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 sm:w-auto"
               >
                 Cancel
               </button>
 
               <button
                 onClick={saveProduct}
-                className="w-full rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
+                className="w-full bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
               >
                 {form.id ? "Save Changes" : "Create Product"}
               </button>

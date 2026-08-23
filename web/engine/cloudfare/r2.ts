@@ -85,6 +85,21 @@ export async function deleteImagesSafe(keys: string[]): Promise<void> {
   }
 }
 
+/**
+ * Best-effort rename — never throws. Returns the new public URL on
+ * success, or null on failure (caller should leave that key/url alone
+ * so the object stays reachable at its old location instead of ending
+ * up in a broken, half-renamed state).
+ */
+export async function renameImageSafe(oldKey: string, newKey: string): Promise<string | null> {
+  try {
+    return await renameImage(oldKey, newKey);
+  } catch (err) {
+    console.error(`R2 rename failed for key "${oldKey}" -> "${newKey}" (continuing anyway):`, err);
+    return null;
+  }
+}
+
 export async function renameImage(oldKey: string, newKey: string): Promise<string> {
   await r2.send(
     new CopyObjectCommand({

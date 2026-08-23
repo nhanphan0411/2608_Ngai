@@ -415,8 +415,8 @@ export default function InventoryPage() {
 
   // ---- styles ----
 
-  const selectClass = "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
-  const inputClass = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const selectClass = "border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400";
+  const inputClass = "w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
   const labelClass = "block text-xs font-medium text-gray-500 mb-1";
   const selectedProductName = products.find(p => p.id === productId)?.product_name;
   const selectedProductSlug = products.find(p => p.id === productId)?.product_slug ?? "product";
@@ -427,7 +427,7 @@ export default function InventoryPage() {
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-gray-900">Inventory</h1>
 
-      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mb-6 flex flex-col gap-3 border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex w-full flex-col sm:w-auto">
           <label className={labelClass}>Collection</label>
           <select className={selectClass} value={collectionId} onChange={e => setCollectionId(e.target.value ? Number(e.target.value) : "")}>
@@ -450,15 +450,15 @@ export default function InventoryPage() {
       </div>
 
       {!productId && (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
-          Select a collection and product above to manage its variants.
+        <div className="border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
+          Select a collection and product above to manage its inventories.
         </div>
       )}
 
       {productId && (
         <>
           {groups.length === 0 && (
-            <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
+            <div className="mb-6 border border-dashed border-gray-300 bg-gray-50 p-10 text-center text-sm text-gray-500">
               No variants yet — create your first group below.
             </div>
           )}
@@ -470,20 +470,20 @@ export default function InventoryPage() {
               const totalStock = group.rows.reduce((sum, r) => sum + Number(r.stock || 0), 0);
 
               return (
-                <section key={group.key} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                  <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <section key={group.key} className="overflow-hidden border border-gray-200 bg-white shadow-sm">
+                  <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-lg font-semibold text-gray-900">
                           {group.value1 || DEFAULT_VALUE1}{group.value2 && <><span className="mx-1 text-gray-300">/</span>{group.value2}</>}
                         </h2>
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{group.rows.length} size{group.rows.length === 1 ? "" : "s"}</span>
+                        <span className="bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{group.rows.length} size{group.rows.length === 1 ? "" : "s"}</span>
                       </div>
                       <p className="mt-1 text-xs text-gray-400">{totalStock} items in stock</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => openEditModal(group)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900">Edit</button>
-                      <button onClick={() => deleteGroup(group)} disabled={isDeleting} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50">{isDeleting ? "Deleting…" : "Delete"}</button>
+                      <button onClick={() => openEditModal(group)} className="border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900">Edit</button>
+                      <button onClick={() => deleteGroup(group)} disabled={isDeleting} className="border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50">{isDeleting ? "Deleting…" : "Delete"}</button>
                     </div>
                   </div>
 
@@ -494,10 +494,10 @@ export default function InventoryPage() {
                         <span className="text-xs text-gray-400">{groupImages.length} image{groupImages.length === 1 ? "" : "s"}</span>
                       </div>
                       {groupImages.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-xs text-gray-400">No images</div>
+                        <div className="border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-xs text-gray-400">No images</div>
                       ) : (
                         <div className="flex gap-2 overflow-x-auto pb-1">
-                          {groupImages.map(img => <img key={img.id} src={img.url_thumb ?? img.url} alt="" className="h-16 w-16 flex-shrink-0 rounded-lg border border-gray-200 object-cover sm:h-20 sm:w-20" />)}
+                          {groupImages.map(img => <img key={img.id} src={img.url_thumb ?? img.url} alt="" className="h-16 w-16 flex-shrink-0 border border-gray-200 object-cover sm:h-20 sm:w-20" />)}
                         </div>
                       )}
                     </div>
@@ -506,10 +506,10 @@ export default function InventoryPage() {
                       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Sizes</h3>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {group.rows.map(row => (
-                          <div key={row.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                          <div key={row.id} className="border border-gray-100 bg-gray-50 p-3">
                             <div className="flex items-center justify-between">
                               <span className="font-medium text-gray-900">{row.value3}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${row.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>{row.status}</span>
+                              <span className={`px-2 py-0.5 text-[10px] font-medium ${row.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>{row.status}</span>
                             </div>
                             <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                               <div><p className="text-gray-400">Stock</p><p className="font-medium text-gray-700">{row.stock}</p></div>
@@ -526,13 +526,13 @@ export default function InventoryPage() {
             })}
           </div>
 
+          {/* ADD NEW GROUP SECTION */}
           {!showNewGroup ? (
-            <button onClick={() => setShowNewGroup(true)} className="mt-6 mb-12 w-full rounded-xl border border-dashed border-gray-300 px-5 py-4 text-sm font-medium text-gray-600 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900">+ New Group</button>
+            <button onClick={() => setShowNewGroup(true)} className="mt-6 mb-12 w-full border border-dashed border-gray-300 px-5 py-4 text-sm font-medium text-gray-600 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900">+ New Group</button>
           ) : (
-            <section className="mt-6 mb-12 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <section className="mt-6 mb-12 border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">New Group</h2>
-                <button onClick={() => { setShowNewGroup(false); setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setNewGroupImages([]) }} className="text-sm text-gray-500 hover:text-gray-800">Cancel</button>
               </div>
 
               <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -545,23 +545,23 @@ export default function InventoryPage() {
               <div className="mb-6">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">Images</h3>
-                  <label className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
+                  <label className="cursor-pointer border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
                     + Add images
                     <input type="file" accept="image/*" multiple onChange={handleNewGroupFileSelect} className="hidden" />
                   </label>
                 </div>
                 {newGroupImages.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">
+                  <div className="border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-400">
                     No images yet.
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {newGroupImages.map(img => (
-                      <div key={img.tempId} className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                      <div key={img.tempId} className="group relative aspect-square overflow-hidden border border-gray-200 bg-gray-100">
                         <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
                         <button
                           onClick={() => removeNewGroupImage(img.tempId)}
-                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100"
+                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           ×
                         </button>
@@ -578,7 +578,7 @@ export default function InventoryPage() {
 
               <div className="space-y-3">
                 {newSizes.map((size, index) => (
-                  <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div key={index} className="border border-gray-200 bg-gray-50 p-3">
                     <div className="mb-3 flex items-center justify-between">
                       <span className="text-xs font-medium text-gray-500">Size {index + 1}</span>
                       {newSizes.length > 1 && <button type="button" onClick={() => removeNewSize(index)} className="text-xs text-red-500 hover:text-red-700">Remove</button>}
@@ -595,11 +595,11 @@ export default function InventoryPage() {
                 ))}
               </div>
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex sm:flex-row flex-col justify-end space-x-6 max-sm:space-y-4">
                 <button
                   onClick={createGroup}
                   disabled={creatingGroup || processing}
-                  className="w-full rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 sm:w-auto"
+                  className="w-full bg-green-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 sm:w-auto"
                 >
                   {processing
                     ? `Processing ${processProgress.done}/${processProgress.total}…`
@@ -607,6 +607,8 @@ export default function InventoryPage() {
                       ? "Creating…"
                       : "Create group"}
                 </button>
+                <button onClick={() => { setShowNewGroup(false); setNewGroup(emptyNewGroup); setNewSizes([emptySize()]); setNewGroupImages([]) }} className="text-sm text-gray-500 hover:text-gray-800">Cancel</button>
+
               </div>
             </section>
           )}
@@ -615,13 +617,13 @@ export default function InventoryPage() {
 
       {editingGroup && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-          <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-4xl sm:rounded-2xl">
+          <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-w-4xl">
             <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Edit variant</h2>
                 <p className="mt-0.5 text-xs text-gray-400">{editingGroup.value1}{editingGroup.value2 && <> / {editingGroup.value2}</>}</p>
               </div>
-              <button onClick={closeEditModal} aria-label="Close" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700">×</button>
+              <button onClick={closeEditModal} aria-label="Close" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center text-2xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700">×</button>
             </div>
 
             <div className="overflow-y-auto px-4 py-5 sm:px-6">
@@ -633,9 +635,9 @@ export default function InventoryPage() {
                   <div><label className={labelClass}>Material</label><input className={inputClass} value={renameValue2} onChange={e => setRenameValue2(e.target.value)} placeholder="leave blank if not to divide by material" /></div>
                 </div>
                 {renameChanged && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-3 py-2">
                     <span className="text-xs text-amber-700">Name changed — this is a separate action from Save below.</span>
-                    <button onClick={renameGroup} disabled={renaming || syncing} className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800 disabled:opacity-50">{renaming ? "Renaming…" : "Rename group"}</button>
+                    <button onClick={renameGroup} disabled={renaming || syncing} className="bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800 disabled:opacity-50">{renaming ? "Renaming…" : "Rename group"}</button>
                   </div>
                 )}
               </div>
@@ -643,25 +645,25 @@ export default function InventoryPage() {
               <div className="mb-6">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">Images</h3>
-                  <label className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
+                  <label className="cursor-pointer border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50">
                     + Add images
                     <input type="file" accept="image/*" multiple onChange={handleFileSelect} className="hidden" />
                   </label>
                 </div>
                 {staged.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">No images yet.</div>
+                  <div className="border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">No images yet.</div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {staged.map((img, index) => (
-                      <div key={img.kind === "existing" ? img.id : img.tempId} draggable onDragStart={() => setDraggedIndex(index)} onDragOver={e => e.preventDefault()} onDrop={() => handleDrop(index)} className="group relative aspect-square cursor-grab overflow-hidden rounded-lg border border-gray-200 bg-gray-100 active:cursor-grabbing">
+                      <div key={img.kind === "existing" ? img.id : img.tempId} draggable onDragStart={() => setDraggedIndex(index)} onDragOver={e => e.preventDefault()} onDrop={() => handleDrop(index)} className="group relative aspect-square cursor-grab overflow-hidden border border-gray-200 bg-gray-100 active:cursor-grabbing">
                         <img src={img.kind === "existing" ? img.url : img.previewUrl} alt="" className={`h-full w-full object-cover ${img.kind === "new" ? "opacity-70" : ""}`} />
-                        {img.kind === "new" && <span className="absolute bottom-1 left-1 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>}
-                        <button onClick={() => handleRemoveImage(index)} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100">×</button>
+                        {img.kind === "new" && <span className="absolute bottom-1 left-1 bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>}
+                        <button onClick={() => handleRemoveImage(index)} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center bg-black/60 text-xs text-white transition sm:opacity-0 sm:group-hover:opacity-100">×</button>
                       </div>
                     ))}
                   </div>
                 )}
-                {dirty && <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2"><span className="text-xs text-amber-700">Unsaved changes</span></div>}
+                {dirty && <div className="mt-3 bg-amber-50 px-3 py-2"><span className="text-xs text-amber-700">Unsaved changes</span></div>}
               </div>
 
               <div>
@@ -671,7 +673,7 @@ export default function InventoryPage() {
                 </div>
                 <div className="space-y-3">
                   {editingRows.map((row, index) => (
-                    <div key={row.id ?? `new-${index}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <div key={row.id ?? `new-${index}`} className="border border-gray-200 bg-gray-50 p-3">
                       <div className="mb-3 flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-500">{row.id ? `Size ${index + 1}` : "New size"}</span>
                         <button onClick={() => deleteEditingSize(row, index)} className="text-xs text-red-500 hover:text-red-700">Delete</button>
@@ -697,7 +699,7 @@ export default function InventoryPage() {
                 <button
                   onClick={saveAllChanges}
                   disabled={!dirty || syncing || processing || renaming}
-                  className="rounded-lg bg-gray-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="bg-gray-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {processing
                     ? `Processing ${processProgress.done}/${processProgress.total}…`

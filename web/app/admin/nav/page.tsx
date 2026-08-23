@@ -99,20 +99,20 @@ export default function NavAdminPage() {
   }
 
   const inputClass =
-    "rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <div className="max-w-3xl">
       <h1 className="text-3xl font-bold mb-6 text-gray-900">Navigation</h1>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-6">
+      <section className="border border-gray-200 bg-white shadow-sm p-6 mb-6">
         {items.length === 0 && (
           <p className="text-sm text-gray-400 mb-4">No nav items yet — add one below.</p>
         )}
 
         <div className="space-y-6">
           {items.map((item, index) => (
-            <div key={index} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <div key={index} className="border border-gray-100 bg-gray-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <input
                   className={inputClass + " flex-1"}
@@ -163,7 +163,7 @@ export default function NavAdminPage() {
 
         <button
           onClick={addTopLevel}
-          className="mt-4 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900"
+          className="mt-4 border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900"
         >
           + Add top-level item
         </button>
@@ -172,7 +172,7 @@ export default function NavAdminPage() {
       <button
         onClick={saveAll}
         disabled={saving}
-        className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+        className="bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
       >
         {saving ? "Saving…" : "Save navigation"}
       </button>

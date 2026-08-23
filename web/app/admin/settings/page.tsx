@@ -80,7 +80,7 @@ export default function SettingsPage() {
   }
 
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+    "w-full border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
   const labelClass = "block text-xs font-medium text-gray-500 mb-1";
 
   const methods = form.payment_methods
@@ -105,107 +105,111 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <h1 className="text-3xl font-bold mb-6 text-gray-900">Settings</h1>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Store info</h2>
+      <section className="flex sm:flex-row flex-col border border-gray-200 bg-white shadow-sm p-6 mb-8">
+        <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Store info</h2>
+        <div className="sm:w-[80%] w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className={labelClass}>Store name</label>
+              <input
+                className={inputClass}
+                value={form.store_name}
+                onChange={(e) => setForm({ ...form, store_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Default currency</label>
+              <select
+                className={inputClass}
+                value={form.default_currency}
+                onChange={(e) => setForm({ ...form, default_currency: e.target.value })}
+              >
+                <option value="VND">VND</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className={labelClass}>Store name</label>
-            <input
+          <div className="mb-4">
+            <label className={labelClass}>Description</label>
+            <textarea
               className={inputClass}
-              value={form.store_name}
-              onChange={(e) => setForm({ ...form, store_name: e.target.value })}
+              rows={3}
+              value={form.store_description ?? ""}
+              onChange={(e) => setForm({ ...form, store_description: e.target.value })}
             />
           </div>
-          <div>
-            <label className={labelClass}>Default currency</label>
-            <select
+
+          <div className="mb-4">
+            <label className={labelClass}>Contact (one method per line, as &quot;Label: value&quot;)</label>
+            <textarea
               className={inputClass}
-              value={form.default_currency}
-              onChange={(e) => setForm({ ...form, default_currency: e.target.value })}
-            >
-              <option value="VND">VND</option>
-              <option value="USD">USD</option>
-            </select>
+              rows={3}
+              placeholder={"Email: hello@ngai.vn\nPhone: 090 123 4567\nInstagram: @ngai.official"}
+              value={form.contact_info ?? ""}
+              onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+            />
           </div>
-        </div>
 
-        <div className="mb-4">
-          <label className={labelClass}>Description</label>
-          <textarea
-            className={inputClass}
-            rows={3}
-            value={form.store_description ?? ""}
-            onChange={(e) => setForm({ ...form, store_description: e.target.value })}
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className={labelClass}>Contact (one method per line, as &quot;Label: value&quot;)</label>
-          <textarea
-            className={inputClass}
-            rows={3}
-            placeholder={"Email: hello@ngai.vn\nPhone: 090 123 4567\nInstagram: @ngai.official"}
-            value={form.contact_info ?? ""}
-            onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className={labelClass}>Stock list (one store per line, as &quot;Store name: Address&quot;)</label>
-          <textarea
-            className={inputClass}
-            rows={4}
-            placeholder={"Ngài Đà Lạt: 12 Trần Phú, Đà Lạt\nNgài Sài Gòn: 45 Lê Lợi, Quận 1, TP.HCM"}
-            value={form.stock_list ?? ""}
-            onChange={(e) => setForm({ ...form, stock_list: e.target.value })}
-          />
+          <div>
+            <label className={labelClass}>Stock list (one store per line, as &quot;Store name: Address&quot;)</label>
+            <textarea
+              className={inputClass}
+              rows={4}
+              placeholder={"Ngài Đà Lạt: 12 Trần Phú, Đà Lạt\nNgài Sài Gòn: 45 Lê Lợi, Quận 1, TP.HCM"}
+              value={form.stock_list ?? ""}
+              onChange={(e) => setForm({ ...form, stock_list: e.target.value })}
+            />
+          </div>
         </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Shipping</h2>
+      <section className="flex sm:flex-row flex-col border border-gray-200 bg-white shadow-sm p-6 mb-8">
+        <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Shipping</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>Flat shipping fee (VND)</label>
-            <input
-              type="number"
-              className={inputClass}
-              value={form.shipping_fee_vnd}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => setForm({ ...form, shipping_fee_vnd: Number(e.target.value) })}
-            />
+        <div className="sm:w-[80%] w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Flat shipping fee (VND)</label>
+              <input
+                type="number"
+                className={inputClass}
+                value={form.shipping_fee_vnd}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setForm({ ...form, shipping_fee_vnd: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Flat shipping fee (USD)</label>
+              <input
+                type="number"
+                step="0.01"
+                className={inputClass}
+                value={form.shipping_fee_usd}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setForm({ ...form, shipping_fee_usd: Number(e.target.value) })}
+              />
+            </div>
           </div>
-          <div>
-            <label className={labelClass}>Flat shipping fee (USD)</label>
-            <input
-              type="number"
-              step="0.01"
-              className={inputClass}
-              value={form.shipping_fee_usd}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => setForm({ ...form, shipping_fee_usd: Number(e.target.value) })}
-            />
-          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Applied as a flat fee added to every order at checkout. Set to 0 for free shipping.
+          </p>
         </div>
-        <p className="text-xs text-gray-400 mt-2">
-          Applied as a flat fee added to every order at checkout. Set to 0 for free shipping.
-        </p>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Size Guides</h2>
+      <section className="flex sm:flex-row flex-col  border border-gray-200 bg-white shadow-sm p-6 mb-8">
+        <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Size Guides</h2>
 
+        <div className="sm:w-[80%] w-full">
         {sizeGuides.length === 0 ? (
           <p className="text-sm text-gray-400 mb-4">No size guides yet.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             {sizeGuides.map((g) => (
-              <div key={g.id} className="rounded-lg border border-gray-200 overflow-hidden">
+              <div key={g.id} className="border border-gray-200 overflow-hidden">
                 <img src={g.url} alt={g.name} className="w-full h-32 object-cover" />
                 <div className="p-2 flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-700 truncate">{g.name}</span>
@@ -228,21 +232,22 @@ export default function SettingsPage() {
           <button
             onClick={uploadSizeGuide}
             disabled={uploadingGuide}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+            className="bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
           >
             {uploadingGuide ? "Uploading…" : "Upload"}
           </button>
         </div>
+        </div>
       </section>
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Payment methods</h2>
-
-        <div className="rounded-lg border border-gray-300 px-3 py-2 flex flex-wrap gap-2 items-center">
+      <section className="flex sm:flex-row flex-col  border border-gray-200 bg-white shadow-sm p-6 mb-8">
+        <h2 className="sm:w-[20%] w-full text-lg font-semibold text-gray-900 mb-5">Payment methods</h2>
+        <div className="sm:w-[80%] w-full">
+        <div className="border border-gray-300 px-3 py-2 flex flex-wrap gap-2 items-center">
           {methods.map((m) => (
             <span
               key={m}
-              className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-medium"
+              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-medium"
             >
               {m}
               <button onClick={() => removeMethod(m)} className="text-blue-500 hover:text-blue-800">
@@ -267,13 +272,14 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400 mt-1">
           These show up as options on the checkout page, in this order.
         </p>
+        </div>
       </section>
 
       <div className="flex items-center gap-4">
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
+          className="bg-green-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save settings"}
         </button>

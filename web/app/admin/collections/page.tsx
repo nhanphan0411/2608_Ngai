@@ -96,14 +96,14 @@ export default function CollectionsPage() {
 
   return (
     <div className="w-full">
-      <div className="max-w-5xl">
+      <div className="w-full">
         <h1 className="mb-5 text-xl font-semibold text-gray-900 sm:mb-6">
           Collections
         </h1>
 
         {/* ================= COLLECTIONS ================= */}
 
-        <section className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm sm:mb-8">
+        <section className="mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm sm:mb-8">
           <div className="border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
             <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
               Collections
@@ -155,7 +155,7 @@ export default function CollectionsPage() {
 
                         <td className="p-3">
                           <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${
                               c.status === "Active"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
@@ -169,14 +169,14 @@ export default function CollectionsPage() {
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={() => editCollection(c)}
-                              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                              className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
                             >
                               Edit
                             </button>
 
                             <button
                               onClick={() => deleteCollection(c.id)}
-                              className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
+                              className="border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
                             >
                               Delete
                             </button>
@@ -206,7 +206,7 @@ export default function CollectionsPage() {
                           </h3>
 
                           <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            className={`shrink-0 px-2 py-0.5 text-[10px] font-medium ${
                               c.status === "Active"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
@@ -224,14 +224,14 @@ export default function CollectionsPage() {
                       <div className="flex shrink-0 gap-2">
                         <button
                           onClick={() => editCollection(c)}
-                          className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                          className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
                         >
                           Edit
                         </button>
 
                         <button
                           onClick={() => deleteCollection(c.id)}
-                          className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                          className="border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
                         >
                           Delete
                         </button>
@@ -246,7 +246,7 @@ export default function CollectionsPage() {
 
         {/* ================= FORM ================= */}
 
-        <section className="mb-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
+        <section className="mb-8 border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
           <div className="mb-4 sm:mb-5">
             <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
               {form.id ? "Edit Collection" : "New Collection"}
@@ -323,7 +323,7 @@ export default function CollectionsPage() {
             {form.id && (
               <button
                 onClick={newCollection}
-                className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:w-auto"
+                className="w-full border border-gray-200 px-4 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:w-auto"
               >
                 Cancel edit
               </button>
@@ -331,7 +331,7 @@ export default function CollectionsPage() {
 
             <button
               onClick={saveCollection}
-              className="w-full rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
+              className="w-full bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
             >
               {form.id ? "Update Collection" : "Create Collection"}
             </button>
