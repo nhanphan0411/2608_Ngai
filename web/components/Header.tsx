@@ -121,8 +121,8 @@ export default function Header() {
   return (
     <>
       {/* ================= MOBILE HEADER ================= */}
-      <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black bg-[#F2F2F2] md:hidden">
-        <div className="flex h-full items-center justify-between px-4">
+      <header id="site-mobile-header" className="fixed inset-x-0 top-0 z-50 h-16 sm:border-b border-black bg-[#F2F2F2] md:hidden">
+        <div className="flex h-full items-center justify-between px-4 max-sm:border-b">
 
           {/* Logo */}
           <Link href="/" onClick={() => setMenuOpen(false)}>
@@ -174,12 +174,20 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile navigation */}
-        {menuOpen && (
-          <nav className="border-b border-black bg-white">
-            {navTree.map((item) => renderNavGroup(item, () => setMenuOpen(false)))}
-          </nav>
-        )}
+        {/* Mobile navigation — always mounted; grid-rows animates 0fr <-> 1fr
+            for a smooth slide-down/up open, same technique as the nav
+            groups below use for their own expand/collapse. */}
+        <div
+          className={`grid overflow-hidden bg-[#F2F2F2] transition-[grid-template-rows] duration-300 ease-in-out ${
+            menuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <nav className="border-black">
+              {navTree.map((item) => renderNavGroup(item, () => setMenuOpen(false)))}
+            </nav>
+          </div>
+        </div>
       </header>
 
       {/* ================= DESKTOP SIDEBAR ================= */}

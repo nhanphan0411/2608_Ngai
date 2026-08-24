@@ -33,6 +33,17 @@ export async function getAllCollectionsAdmin(): Promise<Collection[]> {
   );
 }
 
+/** Public-facing list for things like the collection page's "switch
+ * collection" dropdown — only ever shows collections that are live. */
+export async function getActiveCollections(): Promise<Collection[]> {
+  const db = await getDB();
+
+  return queryAll<Collection>(
+    db
+      .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY collection_name`)
+  );
+}
+
 export async function saveCollections(collections: Collection[]): Promise<void> {
   const db = await getDB();
 

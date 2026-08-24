@@ -113,11 +113,40 @@ function loadNaturalAspect(url: string): Promise<number> {
   });
 }
 
+/** Long line-and-arrowhead icon (⟵ / ⟶ style), not a chevron. */
+function ArrowIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className="h-6 w-6"
+    >
+      {direction === "left" ? (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4M4 12l6-6M4 12l6 6" />
+      ) : (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h16M20 12l-6-6M20 12l-6 6" />
+      )}
+    </svg>
+  );
+}
+
 /**
  * Fullscreen viewer for a clicked photo, with prev/next + Escape/arrow
- * keys. Sized at 80% of the content column's own max width (the column
- * itself doesn't have a natural height, so 80% height falls back to
- * viewport height) and centered on screen.
+ * keys.
+ *
+ * Desktop: backdrop starts right of the fixed sidebar (left-62, same
+ * width as the aside in Header.tsx); prev/next sit in a justify-between
+ * row with the image, so they land at the two ends of the box.
+ * Mobile: there's no sidebar to offset for, but there IS a fixed
+ * top header + (usually) the collection switcher bar right below it —
+ * the backdrop's top is pushed down by however tall those actually are
+ * (measured live via #site-mobile-header / #collection-top-bar) so
+ * neither ever gets covered. There's no room on the sides for prev/next
+ * either, so they move into their own justify-between row below the
+ * image instead, spread to the same two ends.
  */
 function Lightbox({
   photos,
@@ -132,6 +161,30 @@ function Lightbox({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const [mobileTopOffset, setMobileTopOffset] = useState(0);
+
+  useEffect(() => {
+    function measure() {
+      if (window.innerWidth >= 768) {
+        // Desktop uses the sidebar-offset approach instead (left-62);
+        // no vertical reservation needed there.
+        setMobileTopOffset(0);
+        return;
+      }
+
+      const header = document.getElementById("site-mobile-header");
+      const bar = document.getElementById("collection-top-bar");
+      const headerHeight = header?.getBoundingClientRect().height ?? 0;
+      const barHeight = bar?.getBoundingClientRect().height ?? 0;
+
+      setMobileTopOffset(headerHeight + barHeight);
+    }
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -152,7 +205,11 @@ function Lightbox({
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
-      <div className="absolute left-62 top-0 right-0 bottom-0 bg-black/30 p-10 pointer-events-auto" onClick={onClose}>
+      <div
+        className="absolute left-0 md:left-62 right-0 bottom-0 bg-black/30 p-4 md:p-15 pointer-events-auto"
+        style={{ top: mobileTopOffset }}
+        onClick={onClose}
+      >
         <div className="relative flex h-full w-full flex-col bg-[#F2F2F2] border shadow" onClick={(e) => e.stopPropagation()}>
           <div className="absolute top-0 left-0 right-0 z-10 flex h-8 items-center justify-between px-3 border-b">
             <div className="text-sm leading-tight">
@@ -169,19 +226,20 @@ function Lightbox({
             </button>
           </div>
 
-          <div className="relative flex h-full w-full items-center justify-center px-16 py-16">
+          <div className="relative flex h-full w-full flex-col items-center justify-center gap-4 px-4 py-8 md:flex-row md:justify-between md:gap-0 md:px-8 md:py-16">
+            {/* Desktop: prev/next as the two ends of a justify-between row */}
             {photos.length > 1 && (
               <button
                 type="button"
                 onClick={onPrev}
-                className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-3xl cursor-w-resize"
+                className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center cursor-w-resize"
                 aria-label="Previous photo"
               >
-                ‹
+                <ArrowIcon direction="left" />
               </button>
             )}
 
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex w-full min-h-0 min-w-0 flex-1 self-stretch items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photos[index].url}
@@ -194,11 +252,34 @@ function Lightbox({
               <button
                 type="button"
                 onClick={onNext}
-                className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-3xl cursor-e-resize"
+                className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center cursor-e-resize"
                 aria-label="Next photo"
               >
-                ›
+                <ArrowIcon direction="right" />
               </button>
+            )}
+
+            {/* Mobile: prev/next as their own justify-between row below the image */}
+            {photos.length > 1 && (
+              <div className="flex w-full md:hidden shrink-0 items-center justify-between">
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  className="flex h-10 w-10 items-center justify-center cursor-pointer"
+                  aria-label="Previous photo"
+                >
+                  <ArrowIcon direction="left" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className="flex h-10 w-10 items-center justify-center cursor-pointer"
+                  aria-label="Next photo"
+                >
+                  <ArrowIcon direction="right" />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -271,12 +352,12 @@ export default function CollectionGallery({
   if (layoutStyle === "grid") {
     return (
       <>
-        <div className="grid grid-cols-3 md:grid-cols-4">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
           {photos.map((photo, index) => (
             <div
               key={photo.id}
               onClick={() => setLightboxIndex(index)}
-              className="aspect-[3/4] cursor-zoom-in border-b border-r border-black [&:nth-child(3n)]:border-r-0 md:[&:nth-child(3n)]:border-r md:[&:nth-child(4n)]:border-r-0"
+              className="aspect-[3/4] cursor-zoom-in"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photo.url} alt="" className="h-full w-full object-cover" loading="lazy" />
