@@ -10,15 +10,11 @@ export type GalleryPhoto = {
 
 type Box = { pos_x: number; pos_y: number; width_pct: number; height_pct: number };
 
-/**
- * The random-layout canvas needs an explicit height (percentages need
- * something to be percentages OF), but width stays fluid at 100% of the
- * content column. An `aspect-ratio` grows with photo count so the
- * canvas gets taller — never more crowded — as more photos are shown,
- * and stays responsive without any JS measurement.
- */
-export function randomCanvasAspectRatio(photoCount: number): string {
-  const heightUnits = Math.max(2.2, 1 + photoCount * 0.55);
+export function randomCanvasAspectRatio(photoCount: number, isMobile = false): string {
+  const heightUnits = isMobile
+    ? Math.max(4, 1 + photoCount * 0.6)
+    : Math.max(2.2, 1 + photoCount * 0.35);
+
   return `3 / ${heightUnits.toFixed(2)}`;
 }
 
@@ -32,20 +28,18 @@ function rectOverlapArea(x1: number, y1: number, w1: number, h1: number, r2: Box
   return xOverlap * yOverlap;
 }
 
-/**
- * A random size for this photo that preserves its own natural aspect
- * ratio (`imgH / imgW`) — only the scale is random, never the shape —
- * so nothing ever gets stretched or needs cropping. `heightUnits` is
- * the same value the canvas's own aspect-ratio uses, so a width_pct
- * (of canvas width) and height_pct (of canvas height) computed from it
- * actually render at the image's true aspect ratio on screen.
- */
-function randomSizeForAspect(imgAspectHW: number, heightUnits: number): { width_pct: number; height_pct: number } {
-  let width_pct = 22 * randomBetween(0.65, 1.15);
+function randomSizeForAspect(
+  imgAspectHW: number,
+  heightUnits: number,
+  isMobile: boolean
+): { width_pct: number; height_pct: number } {
+  let width_pct = (isMobile ? 38 : 25) * randomBetween(
+    isMobile ? 0.7 : 0.65,
+    isMobile ? 1.3 : 1.35
+  );
+
   let height_pct = width_pct * imgAspectHW * (3 / heightUnits);
 
-  // Keep proportions sane for very wide/tall source images — rescale
-  // both dimensions together (never independently) so aspect is exact.
   const rescale = (value: number, min: number, max: number) => {
     if (value > max) {
       const factor = max / value;
@@ -58,37 +52,51 @@ function randomSizeForAspect(imgAspectHW: number, heightUnits: number): { width_
     }
   };
 
-  rescale(height_pct, 10, 55);
-  rescale(width_pct, 10, 55);
+  rescale(height_pct, isMobile ? 15 : 12, isMobile ? 75 : 70);
+  rescale(width_pct, isMobile ? 15 : 12, isMobile ? 75 : 70);
 
   return { width_pct, height_pct };
 }
 
-/**
- * Position chosen (via a few retries, keeping whichever candidate
- * overlaps existing boxes least) so photos don't pile on top of each
- * other — then clamped into [0, 100 - size] on both axes so a box can
- * never sit outside the canvas.
- */
-function generatePlacement(existing: Box[], imgAspectHW: number, heightUnits: number): Box {
+function generatePlacement(
+  existing: Box[],
+  imgAspectHW: number,
+  heightUnits: number,
+  isMobile: boolean
+): Box {
   let best: Box | null = null;
   let bestOverlap = Infinity;
 
-  for (let attempt = 0; attempt < 25; attempt++) {
-    const { width_pct, height_pct } = randomSizeForAspect(imgAspectHW, heightUnits);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const { width_pct, height_pct } = randomSizeForAspect(
+      imgAspectHW,
+      heightUnits,
+      isMobile
+    );
+
     const pos_x = randomBetween(0, Math.max(0, 100 - width_pct));
     const pos_y = randomBetween(0, Math.max(0, 100 - height_pct));
 
     const overlap = existing.reduce(
-      (sum, e) => sum + rectOverlapArea(pos_x, pos_y, width_pct, height_pct, e),
+      (sum, e) =>
+        sum + rectOverlapArea(
+          pos_x,
+          pos_y,
+          width_pct,
+          height_pct,
+          e
+        ),
       0
     );
 
-    if (overlap === 0) return { pos_x, pos_y, width_pct, height_pct };
-
     if (overlap < bestOverlap) {
       bestOverlap = overlap;
-      best = { pos_x, pos_y, width_pct, height_pct };
+      best = {
+        pos_x,
+        pos_y,
+        width_pct,
+        height_pct,
+      };
     }
   }
 
@@ -97,23 +105,28 @@ function generatePlacement(existing: Box[], imgAspectHW: number, heightUnits: nu
 
 function shuffled<T>(arr: T[]): T[] {
   const copy = [...arr];
+
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
+
   return copy;
 }
 
 function loadNaturalAspect(url: string): Promise<number> {
   return new Promise((resolve) => {
     const img = new window.Image();
-    img.onload = () => resolve((img.naturalHeight || 1) / (img.naturalWidth || 1));
-    img.onerror = () => resolve(1); // fall back to square if it fails to load
+
+    img.onload = () =>
+      resolve((img.naturalHeight || 1) / (img.naturalWidth || 1));
+
+    img.onerror = () => resolve(1);
+
     img.src = url;
   });
 }
 
-/** Long line-and-arrowhead icon (⟵ / ⟶ style), not a chevron. */
 function ArrowIcon({ direction }: { direction: "left" | "right" }) {
   return (
     <svg
@@ -125,29 +138,22 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
       className="h-6 w-6"
     >
       {direction === "left" ? (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4M4 12l6-6M4 12l6 6" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M20 12H4M4 12l6-6M4 12l6 6"
+        />
       ) : (
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h16M20 12l-6-6M20 12l-6 6" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 12h16M20 12l-6-6M20 12l-6 6"
+        />
       )}
     </svg>
   );
 }
 
-/**
- * Fullscreen viewer for a clicked photo, with prev/next + Escape/arrow
- * keys.
- *
- * Desktop: backdrop starts right of the fixed sidebar (left-62, same
- * width as the aside in Header.tsx); prev/next sit in a justify-between
- * row with the image, so they land at the two ends of the box.
- * Mobile: there's no sidebar to offset for, but there IS a fixed
- * top header + (usually) the collection switcher bar right below it —
- * the backdrop's top is pushed down by however tall those actually are
- * (measured live via #site-mobile-header / #collection-top-bar) so
- * neither ever gets covered. There's no room on the sides for prev/next
- * either, so they move into their own justify-between row below the
- * image instead, spread to the same two ends.
- */
 function Lightbox({
   photos,
   index,
@@ -166,27 +172,32 @@ function Lightbox({
   useEffect(() => {
     function measure() {
       if (window.innerWidth >= 768) {
-        // Desktop uses the sidebar-offset approach instead (left-62);
-        // no vertical reservation needed there.
         setMobileTopOffset(0);
         return;
       }
 
       const header = document.getElementById("site-mobile-header");
       const bar = document.getElementById("collection-top-bar");
-      const headerHeight = header?.getBoundingClientRect().height ?? 0;
-      const barHeight = bar?.getBoundingClientRect().height ?? 0;
+
+      const headerHeight =
+        header?.getBoundingClientRect().height ?? 0;
+
+      const barHeight =
+        bar?.getBoundingClientRect().height ?? 0;
 
       setMobileTopOffset(headerHeight + barHeight);
     }
 
     measure();
+
     window.addEventListener("resize", measure);
+
     return () => window.removeEventListener("resize", measure);
   }, []);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+
     document.body.style.overflow = "hidden";
 
     function handleKey(e: KeyboardEvent) {
@@ -210,7 +221,10 @@ function Lightbox({
         style={{ top: mobileTopOffset }}
         onClick={onClose}
       >
-        <div className="relative flex h-full w-full flex-col bg-[#F2F2F2] border shadow" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="relative flex h-full w-full flex-col bg-[#F2F2F2] border shadow"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="absolute top-0 left-0 right-0 z-10 flex h-8 items-center justify-between px-3 border-b">
             <div className="text-sm leading-tight">
               {index + 1}/{photos.length}
@@ -227,7 +241,6 @@ function Lightbox({
           </div>
 
           <div className="relative flex h-full w-full flex-col items-center justify-center gap-4 px-4 py-8 md:flex-row md:justify-between md:gap-0 md:px-8 md:py-16">
-            {/* Desktop: prev/next as the two ends of a justify-between row */}
             {photos.length > 1 && (
               <button
                 type="button"
@@ -259,7 +272,6 @@ function Lightbox({
               </button>
             )}
 
-            {/* Mobile: prev/next as their own justify-between row below the image */}
             {photos.length > 1 && (
               <div className="flex w-full md:hidden shrink-0 items-center justify-between">
                 <button
@@ -288,14 +300,6 @@ function Lightbox({
   );
 }
 
-/**
- * Renders a set of editorial photos as either:
- * - "grid": a fixed 4-col desktop / 3-col mobile grid, in the given order.
- * - "random": every photo gets a fresh size + position generated
- *   client-side on mount (bounded, overlap-minimized), regenerated on
- *   every page load. Size only ever scales the photo's own aspect
- *   ratio — never crops or stretches it.
- */
 export default function CollectionGallery({
   photos,
   layoutStyle,
@@ -304,46 +308,92 @@ export default function CollectionGallery({
   layoutStyle: CollectionLayoutStyle;
 }) {
   const [mounted, setMounted] = useState(false);
-  const [arranged, setArranged] = useState<{ photo: GalleryPhoto; box: Box }[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [arranged, setArranged] = useState<
+    { photo: GalleryPhoto; box: Box }[]
+  >([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Navigation order for the lightbox: whatever's actually on screen —
-  // the grid's given order, or random's shuffled display order — so
-  // next/prev steps through photos in the same order they're shown in.
-  const displayList = layoutStyle === "grid" ? photos : arranged.map((a) => a.photo);
+  const displayList =
+    layoutStyle === "grid"
+      ? photos
+      : arranged.map((a) => a.photo);
 
   function showPrev() {
-    setLightboxIndex((i) => (i === null ? null : (i - 1 + displayList.length) % displayList.length));
+    setLightboxIndex((i) =>
+      i === null
+        ? null
+        : (i - 1 + displayList.length) % displayList.length
+    );
   }
 
   function showNext() {
-    setLightboxIndex((i) => (i === null ? null : (i + 1) % displayList.length));
+    setLightboxIndex((i) =>
+      i === null
+        ? null
+        : (i + 1) % displayList.length
+    );
   }
 
   useEffect(() => {
     let cancelled = false;
+    let lastIsMobile = window.innerWidth < 768;
 
-    (async () => {
-      const heightUnits = Math.max(2.2, 1 + photos.length * 0.55);
+    setIsMobile(lastIsMobile);
+
+    async function generateLayout(mobile: boolean) {
+      setMounted(false);
+
+      const heightUnits = mobile
+        ? Math.max(4, 1 + photos.length * 0.6)
+        : Math.max(2.2, 1 + photos.length * 0.35);
+
       const order = shuffled(photos);
-      const aspects = await Promise.all(order.map((p) => loadNaturalAspect(p.url)));
+
+      const aspects = await Promise.all(
+        order.map((p) => loadNaturalAspect(p.url))
+      );
 
       if (cancelled) return;
 
       const boxes: Box[] = [];
 
       const arrangedList = order.map((photo, i) => {
-        const box = generatePlacement(boxes, aspects[i], heightUnits);
+        const box = generatePlacement(
+          boxes,
+          aspects[i],
+          heightUnits,
+          mobile
+        );
+
         boxes.push(box);
+
         return { photo, box };
       });
 
+      if (cancelled) return;
+
       setArranged(arrangedList);
       setMounted(true);
-    })();
+    }
+
+    generateLayout(lastIsMobile);
+
+    function handleResize() {
+      const mobile = window.innerWidth < 768;
+
+      if (mobile !== lastIsMobile) {
+        lastIsMobile = mobile;
+        setIsMobile(mobile);
+        generateLayout(mobile);
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("resize", handleResize);
     };
   }, [photos]);
 
@@ -360,7 +410,12 @@ export default function CollectionGallery({
               className="aspect-[3/4] cursor-zoom-in"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+              <img
+                src={photo.url}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
           ))}
         </div>
@@ -378,22 +433,28 @@ export default function CollectionGallery({
     );
   }
 
-  // Random layout. Nothing is rendered until we've loaded each photo's
-  // natural size and generated a client-side arrangement, so we never
-  // ship a server-rendered layout that would mismatch (and visibly
-  // jump, or briefly show the wrong aspect ratio) on hydration.
   if (!mounted) {
     return (
       <div
         className="w-full animate-pulse bg-gray-100"
-        style={{ aspectRatio: randomCanvasAspectRatio(photos.length) }}
+        style={{
+          aspectRatio: randomCanvasAspectRatio(photos.length),
+        }}
       />
     );
   }
 
   return (
     <>
-      <div className="relative w-full" style={{ aspectRatio: randomCanvasAspectRatio(photos.length) }}>
+      <div
+        className="relative w-full"
+        style={{
+          aspectRatio: randomCanvasAspectRatio(
+            photos.length,
+            isMobile
+          ),
+        }}
+      >
         {arranged.map(({ photo, box }, index) => (
           <div
             key={photo.id}
@@ -404,10 +465,16 @@ export default function CollectionGallery({
               top: `${box.pos_y}%`,
               width: `${box.width_pct}%`,
               height: `${box.height_pct}%`,
+              zIndex: index + 1,
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.url} alt="" className="h-full w-full object-contain" loading="lazy" />
+            <img
+              src={photo.url}
+              alt=""
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
           </div>
         ))}
       </div>

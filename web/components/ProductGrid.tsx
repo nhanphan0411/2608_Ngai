@@ -19,9 +19,12 @@ export default function ProductGrid({
 }) {
   if (cards.length === 0) {
     return (
-      <p className="text-sm text-gray-400">
+      <div className="">      
+      <p className="text-sm text-gray-400 text-center py-4">
         {emptyMessage}
       </p>
+      </div>
+
     );
   }
 

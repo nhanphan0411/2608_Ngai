@@ -98,7 +98,7 @@ export default function CollectionTopBar({
                     )}
                 </div>
 
-                <div className="w-1/2 pl-4 py-2">
+                <div className="w-1/2 sm:pl-4 pl-2 py-2">
                     <a
                         href="#shop-this-collection"
                         onClick={scrollToProducts}
