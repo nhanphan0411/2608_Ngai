@@ -214,7 +214,7 @@ export default function ProductCard({
 
         {/* ================= PRODUCT INFO ================= */}
         <div className="space-y-0 p-3">
-          <h2 className="text-center text-sm">
+          <h2 className="text-center text-sm uppercase">
             {product.product_name}
           </h2>
 

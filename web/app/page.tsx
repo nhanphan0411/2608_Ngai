@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Image from "next/image";
+import { DesktopNav, MobileNav } from "@/components/home/HomeNav";
 
 const src_desktop =
   "https://pub-6dc4b85e0fa049fe813176c2b710444c.r2.dev/Homepage/hero-dektop.png";
@@ -13,60 +14,61 @@ const src_hero_logo =
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen overflow-hidden">
-      {/* Desktop background */}
-      <Image
-        src={src_desktop}
-        alt=""
-        fill
-        priority
-        className="hidden object-cover md:block"
-      />
+    <main className="relative w-full">
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <div className="relative h-screen w-full overflow-hidden">
+          <Image
+            src={src_desktop}
+            alt=""
+            fill
+            priority
+            className="object-cover"
+          />
 
-      {/* Mobile background */}
-      <Image
-        src={src_mobile}
-        alt=""
-        fill
-        priority
-        className="object-cover md:hidden"
-      />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-4">
+            <Image
+              src={src_hero_logo}
+              alt="Ngài"
+              width={1000}
+              height={400}
+              priority
+              className="h-auto w-[50vw]"
+            />
 
-      {/* Centered logo */}
-      <div className="fixed inset-0 z-10 flex flex-col items-center justify-center px-4">
-        <Image
-          src={src_hero_logo}
-          alt="Ngài"
-          width={1000}
-          height={400}
-          priority
-          className="h-auto w-[80vw] md:w-[50vw]"
-        />
-        <div className="mt-2 flex w-[80vw] justify-between text-sm mobile-only">
-          <p>coming soon</p>
-          <div>
-          <a
-            href="https://www.instagram.com/ngaiofficial/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            keep in touch
-          </a>
+            <div className="w-[50vw]">
+              <DesktopNav />
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Mobile */}
+      <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden md:hidden">
+        <Image
+          src={src_mobile}
+          alt=""
+          fill
+          priority
+          className="object-cover"
+        />
 
-      {/* Bottom content */}
-      <div className="fixed bottom-6 left-0 right-0 z-10 flex flex-col items-center text-center desktop-only">
-        <p className="text-sm">
-          coming soon
-        </p>
+        <div className="relative z-10 flex flex-col items-center justify-center">
+          <Image
+            src={src_hero_logo}
+            alt="Ngài"
+            width={1000}
+            height={400}
+            priority
+            className="h-auto w-[120vw] rotate-90"
+          />
+        </div>
 
-        <p className="mt-2 text-sm">
-          <a href="https://www.instagram.com/ngaiofficial/" target="_blank" className="underline">instagram</a> / <a href="mailto:hello@houseofngai.com" target="_blank" className="underline">email</a>
-        </p>
+        <div className="absolute inset-x-0 bottom-10 z-10 flex justify-center px-4">
+          <div className="w-[80vw]">
+            <MobileNav />
+          </div>
+        </div>
       </div>
     </main>
   );

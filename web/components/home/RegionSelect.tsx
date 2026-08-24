@@ -59,22 +59,22 @@ export default function RegionSelect({ className = "" }: { className?: string })
     }
 
     return (
-        <div className="flex flex-row w-full">
-            <span className="w-[20%] sm:hidden">REGION: </span>
-            <select
-                value={country}
-                onChange={(e) => changeCountry(e.target.value)}
-                className={`block sm:w-full w-[80%] min-w-0 max-w-full truncate overflow-hidden bg-transparent text-left text-sm uppercase tracking-wide outline-none ${className} cursor-pointer`}
-            >
-                <option value="" disabled>
-                    select region
+        <div className="flex w-full flex-row flex-nowrap items-center">
+        <span className="w-[20%] shrink-0 sm:hidden">REGION: </span>
+        <select
+            value={country}
+            onChange={(e) => changeCountry(e.target.value)}
+            className={`block w-[80%] min-w-0 max-w-full truncate overflow-hidden bg-transparent text-left text-sm uppercase tracking-wide outline-none sm:w-full ${className} cursor-pointer`}
+        >
+            <option value="" disabled>
+                select region
+            </option>
+            {countries.map((c) => (
+                <option key={c.code} value={c.code}>
+                    {c.name}
                 </option>
-                {countries.map((c) => (
-                    <option key={c.code} value={c.code}>
-                        {c.name}
-                    </option>
-                ))}
-            </select>
-        </div>
+            ))}
+        </select>
+    </div>
     );
 }

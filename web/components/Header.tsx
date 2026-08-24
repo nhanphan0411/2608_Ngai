@@ -66,7 +66,7 @@ export default function Header() {
           key={item.label}
           href={item.href ?? "#"}
           onClick={onNavigate}
-          className={`block border-b border-black px-2 py-1 text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
+          className={`block border-b border-black px-2 py-2 text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
             }`}
         >
           {item.label}
@@ -80,7 +80,7 @@ export default function Header() {
           type="button"
           onClick={() => toggleGroup(item.label)}
           aria-expanded={isOpen}
-          className={`flex w-full items-center justify-between border-b border-black px-2 py-1 text-left text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
+          className={`flex w-full items-center justify-between border-b border-black px-2 py-2 text-left text-sm ${isActive(item.href) ? "bg-black text-white" : "hover:bg-gray-100 cursor-pointer"
             }`}
         >
           <span>{item.label}</span>
