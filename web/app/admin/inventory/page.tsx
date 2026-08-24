@@ -473,7 +473,7 @@ export default function InventoryPage() {
                 <section key={group.key} className="overflow-hidden border border-gray-200 bg-white shadow-sm">
                   <div className="flex flex-col gap-3 border-b border-gray-100 bg-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 !uppercase">
                         <h2 className="text-lg font-semibold text-gray-900">
                           {group.value1 || DEFAULT_VALUE1}{group.value2 && <><span className="mx-1 text-gray-300">/</span>{group.value2}</>}
                         </h2>
@@ -508,7 +508,7 @@ export default function InventoryPage() {
                         {group.rows.map(row => (
                           <div key={row.id} className="border border-gray-100 bg-gray-50 p-3">
                             <div className="flex items-center justify-between">
-                              <span className="font-medium text-gray-900">{row.value3}</span>
+                              <span className="font-medium text-gray-900 uppercase">{row.value3}</span>
                               <span className={`px-2 py-0.5 text-[10px] font-medium ${row.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>{row.status}</span>
                             </div>
                             <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
