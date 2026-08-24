@@ -44,7 +44,7 @@ export default function Home() {
       </div>
 
       {/* Mobile */}
-      <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden md:hidden">
+      <div className="relative flex h-[100dvh] w-full items-start justify-center overflow-hidden md:hidden">
         <Image
           src={src_mobile}
           alt=""
@@ -53,17 +53,19 @@ export default function Home() {
           className="object-cover"
         />
 
-        <div className="relative z-10 flex flex-col items-center justify-center">
+        {/* Logo */}
+        <div className="relative z-10 flex w-full justify-center pt-[8vh]">
           <Image
             src={src_hero_logo}
             alt="Ngài"
             width={1000}
-            height={400}
+            height={800}
             priority
-            className="h-auto w-[120vw] rotate-90"
+            className="h-auto w-[220vw] rotate-90 mt-[20vh]"
           />
         </div>
 
+        {/* Navigation */}
         <div className="absolute inset-x-0 bottom-10 z-10 flex justify-center px-4">
           <div className="w-[80vw]">
             <MobileNav />
