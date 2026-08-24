@@ -136,3 +136,12 @@ export interface VariantGroup {
   value1: string;
   value2: string | null;
 }
+
+export interface Document {
+  id: number;
+  name: string;
+  slug: string;
+  content_markdown: string;
+  created_at: string;
+  updated_at: string;
+}
