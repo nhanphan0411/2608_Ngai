@@ -44,6 +44,28 @@ export async function getActiveCollections(): Promise<Collection[]> {
   );
 }
 
+/**
+ * Most-recently-created live collection — used to send visitors of the bare
+ * /collections route straight to a collection page instead of an index.
+ * Collections have no created_at column, so "latest" is the highest id
+ * (ids are assigned in insertion order). Falls back to any collection
+ * (regardless of status) if nothing is Active, so the route still resolves
+ * while a store is being set up.
+ */
+export async function getLatestCollection(): Promise<Collection | null> {
+  const db = await getDB();
+
+  const active = (await db
+    .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY id DESC LIMIT 1`)
+    .first()) as Collection | null;
+
+  if (active) return active;
+
+  return (await db
+    .prepare(`SELECT * FROM collections ORDER BY id DESC LIMIT 1`)
+    .first()) as Collection | null;
+}
+
 export async function saveCollections(collections: Collection[]): Promise<void> {
   const db = await getDB();
 

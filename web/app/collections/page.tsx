@@ -1,40 +1,14 @@
 export const dynamic = "force-dynamic";
 
-import { getAllCollectionsAdmin } from "@/lib/db/collections";
-import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
+import { getLatestCollection } from "@/lib/db/collections";
 
+// The bare /collections route isn't a real page — it always sends visitors
+// straight to the latest collection page instead of showing an index.
 export default async function AllCollectionsPage() {
+  const latest = await getLatestCollection();
 
-  const collections = await getAllCollectionsAdmin();
+  if (!latest) return notFound();
 
-  return (
-    <main className="max-w-4xl mx-auto p-10">
-
-      <h1 className="text-3xl font-bold mb-8">
-        Collections
-      </h1>
-
-      <div className="space-y-4">
-
-        {collections.map((collection: any) => (
-
-          <Link
-            href={`/collections/${collection.collection_slug}`}
-            className="block border rounded-lg p-5"
-            key={collection.id}
-          >
-            <h2 className="font-bold text-xl">
-              {collection.collection_name}
-            </h2>
-
-            <p>{collection.collection_slug}</p>
-          </Link>
-
-        ))}
-
-      </div>
-
-    </main>
-  );
-
+  redirect(`/collections/${latest.collection_slug}`);
 }
