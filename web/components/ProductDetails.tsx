@@ -90,7 +90,7 @@ export default function ProductOptions({
 
     return (
         <div className="md:flex md:h-screen md:min-h-0 max-sm:mb-[20vh]">
-            <div className="flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden md:block md:h-screen md:w-[60vw] md:snap-none md:overflow-x-hidden md:overflow-y-auto max-sm:border-b">
+            <div className="flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden md:block md:h-screen md:w-[60vw] md:snap-none md:overflow-x-hidden md:overflow-y-auto max-sm:border-b sm:border-r">
                 {galleryImages.length > 0 ? galleryImages.map((img, i) => (
                     <div key={img.id ?? i} className="relative aspect-[3/4] w-full shrink-0 snap-center bg-gray-100 md:w-full md:shrink md:snap-none">
                         <Image src={img.url_large} alt={`${product.product_name} - Image ${i + 1}`} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority={i === 0} />
