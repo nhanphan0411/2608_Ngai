@@ -256,9 +256,6 @@ export default function DocumentsPage() {
                 setForm({ ...form, slug: slugify(e.target.value) });
               }}
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Live at ourwebsite.com/{form.slug || "…"}
-            </p>
           </div>
         </div>
 
