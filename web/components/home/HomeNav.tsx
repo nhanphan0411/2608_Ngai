@@ -51,7 +51,7 @@ export function MobileNav() {
       >
         <nav className="w-full border-x border-t border-black bg-[#F2F2F2]">
           <Link
-            href="/collections"
+            href="/products"
             onClick={() => setOpen(false)}
             className={itemClass}
           >
@@ -59,7 +59,7 @@ export function MobileNav() {
           </Link>
 
           <Link
-            href="/categories"
+            href="/collections"
             onClick={() => setOpen(false)}
             className={itemClass}
           >

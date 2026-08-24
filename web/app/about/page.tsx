@@ -32,14 +32,14 @@ export default async function AboutPage() {
     address: s.value,
   }));
 
-  const labelClass = "border-r border-black p-6 align-top text-right";
+  const labelClass = "border-r border-black p-6 align-top sm:text-right text-start";
   const contentClass = "p-6 align-top text-sm leading-relaxed";
 
   return (
     <main className="w-full h-full">
-      <div className="grid grid-cols-[160px_1fr] sm:grid-cols-[400px_1fr] border-b">
+      <div className="grid grid-cols-1 sm:grid-cols-[400px_1fr] sm:border-b">
         {/* Row 1 — About */}
-        <div className={`${labelClass} border-b`}>ABOUT</div>
+        <div className={`${labelClass} sm:border-b`}>ABOUT</div>
         <div className={`${contentClass} border-b border-black`}>
           {settings.store_description && (
             <p className="whitespace-pre-line">{settings.store_description}</p>
@@ -47,7 +47,7 @@ export default async function AboutPage() {
         </div>
 
         {/* Row 2 — Contact */}
-        <div className={`${labelClass} border-b`}>CONTACT</div>
+        <div className={`${labelClass} sm:border-b`}>CONTACT</div>
         <div className={`${contentClass} border-b border-black space-y-1`}>
           {contacts.length > 0 ? (
             contacts.map((c, i) => {
