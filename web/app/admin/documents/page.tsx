@@ -147,7 +147,7 @@ export default function DocumentsPage() {
 
                       <td className="p-3 text-gray-500">
                         <a
-                          href={`/${d.slug}`}
+                          href={`/pages/${d.slug}`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-blue-600 hover:underline"
