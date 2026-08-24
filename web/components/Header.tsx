@@ -106,7 +106,7 @@ export default function Header() {
                 key={child.label}
                 href={child.href ?? "#"}
                 onClick={onNavigate}
-                className={`block border-b border-black py-1 pl-2 pr-1 text-sm ${isActive(child.href) ? "bg-black text-white" : "text-gray-700 hover:bg-gray-100"
+                className={`block border-b border-black py-2 pl-2 pr-1 text-sm ${isActive(child.href) ? "bg-black text-white" : "text-gray-700 hover:bg-gray-100"
                   }`}
               >
                 ↳ {child.label}
