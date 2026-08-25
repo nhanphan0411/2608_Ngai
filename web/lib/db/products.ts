@@ -138,28 +138,6 @@ export async function getProductsByCollectionAdmin(collectionId: number): Promis
   return results as unknown as Product[];
 }
 
-export async function saveProducts(products: Product[]): Promise<void> {
-  const db = await getDB();
-
-  await db.prepare(`DELETE FROM products`).run();
-
-  const stmt = db.prepare(`
-    INSERT INTO products (
-      id, collection_id, product_name, product_slug,
-      category, status, description, shipping, sizeGuide, size_guide_id, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const batch = products.map((p) =>
-    stmt.bind(
-      p.id, p.collection_id, p.product_name, p.product_slug,
-      p.category, p.status, p.description, p.shipping, p.sizeGuide, p.size_guide_id, p.notes
-    )
-  );
-
-  if (batch.length > 0) await db.batch(batch);
-}
-
 export async function getAllProductsAdmin(): Promise<Product[]> {
   const db = await getDB();
 

@@ -20,6 +20,7 @@ export default function Home() {
         alt=""
         fill
         priority
+        sizes="100vw"
         className="hidden object-cover md:block"
       />
 
@@ -29,6 +30,7 @@ export default function Home() {
         alt=""
         fill
         priority
+        sizes="100vw"
         className="object-cover md:hidden"
       />
 

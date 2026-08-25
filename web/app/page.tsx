@@ -23,6 +23,7 @@ export default function Home() {
             alt=""
             fill
             priority
+            sizes="100vw"
             className="object-cover"
           />
 
@@ -50,6 +51,7 @@ export default function Home() {
           alt=""
           fill
           priority
+          sizes="100vw"
           className="object-cover"
         />
 

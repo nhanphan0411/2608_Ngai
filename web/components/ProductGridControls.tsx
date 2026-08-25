@@ -43,7 +43,7 @@ export default function ProductGridControls({
   }
 
   const selectClass =
-    "py-0.5 text-[10px] uppercase tracking-wide outline-none";
+    "py-0.5 text-[10px] uppercase tracking-wide outline-none cursor-pointer";
 
   return (
     <div className="flex flex-wrap items-center sm:justify-end max-sm:justify-center gap-1.5 border-b border-black py-1.5 sm:px-2">

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getVariantById } from "@/lib/db/inventory";
-import { getProductById } from "@/lib/db/products";
+import { getVariantsForCart } from "@/lib/db/inventory";
 import type { CartItem, Inventory, Product } from "@/types/db";
-import { getFirstImage } from "@/lib/db/images";
 
 type CartLine = CartItem & {
   available: boolean;
@@ -14,6 +12,18 @@ type CartLine = CartItem & {
   image: string | null;
 };
 
+function unavailableLine(item: CartItem): CartLine {
+  return {
+    ...item,
+    available: false,
+    unit_price: 0,
+    total_price: 0,
+    variant: null,
+    product: null,
+    image: null,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const { cart, currency } = (await req.json()) as {
     cart: CartItem[];
@@ -22,64 +32,35 @@ export async function POST(req: NextRequest) {
 
   const isUSD = currency === "USD";
 
-  const items: CartLine[] = await Promise.all(
-    cart.map(async (item): Promise<CartLine> => {
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        return {
-          ...item,
-          available: false,
-          unit_price: 0,
-          total_price: 0,
-          variant: null,
-          product: null,
-          image: null,
-        };
-      }
-      const variant = await getVariantById(item.variant_id);
+  // One batched lookup for the whole cart instead of 3 sequential queries
+  // per line — fires on every /cart and /checkout load and after every
+  // cart mutation, so this is the hottest read path in the app.
+  const uniqueIds = [...new Set(cart.map((item) => item.variant_id))];
+  const rows = await getVariantsForCart(uniqueIds);
+  const byVariantId = new Map(rows.map((row) => [row.variant.id, row]));
 
-      if (!variant) {
-        return {
-          ...item,
-          available: false,
-          unit_price: 0,
-          total_price: 0,
-          variant: null,
-          product: null,
-          image: null,
-        };
-      }
+  const items: CartLine[] = cart.map((item): CartLine => {
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+      return unavailableLine(item);
+    }
 
-      const product = await getProductById(variant.product_id);
+    const row = byVariantId.get(item.variant_id);
+    if (!row) return unavailableLine(item);
 
-      if (!product) {
-        return {
-          ...item,
-          available: false,
-          unit_price: 0,
-          total_price: 0,
-          variant: null,
-          product: null,
-          image: null,
-        };
-      }
+    const { variant, product, imageUrl } = row;
+    const price = isUSD && variant.priceUSD ? variant.priceUSD : (variant.priceVND ?? 0);
 
-
-      const image = await getFirstImage(variant.variant_group_id);
-
-      const price = isUSD && variant.priceUSD ? variant.priceUSD : (variant.priceVND ?? 0);
-
-      return {
-        ...item,
-        available: true,
-        quantity: item.quantity,
-        unit_price: price,
-        total_price: price * item.quantity,
-        image: image?.url_thumb ?? null,
-        product,
-        variant,
-      };
-    })
-  );
+    return {
+      ...item,
+      available: true,
+      quantity: item.quantity,
+      unit_price: price,
+      total_price: price * item.quantity,
+      image: imageUrl,
+      product,
+      variant,
+    };
+  });
 
   return NextResponse.json(items);
 }

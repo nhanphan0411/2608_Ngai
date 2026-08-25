@@ -2,11 +2,10 @@ import { getDB } from "@/lib/d1";
 import {
   Order,
   OrderDetail,
-  Inventory,
   CartItem,
   NewOrder,
 } from "@/types/db";
-import { getVariantById } from "./inventory";
+import { getVariantsByIds } from "./inventory";
 
 export async function createOrderWithDetails(
   order: NewOrder,
@@ -29,15 +28,21 @@ export async function createOrderWithDetails(
 
   const lines: Omit<OrderDetail, "id" | "order_id">[] = [];
 
+  // One batched fetch for every variant in the cart instead of one query
+  // per line — this validation loop runs on every order placement, so it's
+  // on the actual money path. Stock/status are re-checked again below at
+  // the actual decrement (batched, with rollback on a race) — this fetch
+  // is purely the up-front read, not the source of truth for the write.
+  const variantsById = new Map(
+    (await getVariantsByIds(cart.map((item) => item.variant_id))).map((v) => [v.id, v])
+  );
+
   for (const item of cart) {
     if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
       throw new Error(`Invalid quantity for variant ${item.variant_id}`);
     }
 
-    const variant = (await getVariantById(
-      item.variant_id
-    )) as Inventory | null;
-
+    const variant = variantsById.get(item.variant_id);
 
     if (!variant || variant.status !== "Active") {
       throw new Error(`Variant ${item.variant_id} is not available`);
@@ -172,15 +177,6 @@ export async function createOrderWithDetails(
   }
 
   return publicId;
-}
-
-export async function getOrder(id: number): Promise<Order | null> {
-  const db = await getDB();
-
-  return (await db
-    .prepare(`SELECT * FROM orders WHERE public_id = ?`)
-    .bind(id)
-    .first()) as Order | null;
 }
 
 export async function getOrderWithItems(publicId: string) {

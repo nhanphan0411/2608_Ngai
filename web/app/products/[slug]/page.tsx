@@ -38,11 +38,14 @@ export default async function ProductPage({
 
   if (!product) return notFound();
 
-  const inventory: any[] = await getInventory(product.id);
-  const images: any[] = await getAllImagesForProduct(product.id);
+  const [inventory, images, sizeGuide, collection] = await Promise.all([
+    getInventory(product.id) as Promise<any[]>,
+    getAllImagesForProduct(product.id) as Promise<any[]>,
+    product.size_guide_id ? getSizeGuideById(product.size_guide_id) : Promise.resolve(null),
+    getCollection(product.collection_id),
+  ]);
+
   const options = buildProductOptions(inventory);
-  const sizeGuide = product.size_guide_id ? await getSizeGuideById(product.size_guide_id) : null;
-  const collection = await getCollection(product.collection_id);
 
   return (
     <ProductDetails

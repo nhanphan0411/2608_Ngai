@@ -45,10 +45,12 @@ export default async function CollectionPage({
     page,
   });
 
-  const cards = await buildProductCards(products);
-  const photos = await getCollectionPhotos(collection.id);
+  const [cards, photos, activeCollections] = await Promise.all([
+    buildProductCards(products),
+    getCollectionPhotos(collection.id),
+    getActiveCollections(),
+  ]);
 
-  const activeCollections = await getActiveCollections();
   const otherCollections = activeCollections.filter((c) => c.id !== collection.id);
 
   return (

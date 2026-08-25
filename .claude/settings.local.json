@@ -1,4 +1,19 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npx wrangler *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(curl -s -o /dev/null -w \"products: %{http_code}\\\\n\" http://localhost:3000/products)",
+      "Bash(curl -s -o /dev/null -w \"collections/N05: %{http_code}\\\\n\" http://localhost:3000/collections/N05)",
+      "Bash(curl -s -o /dev/null -w \"categories/tops: %{http_code}\\\\n\" http://localhost:3000/categories/tops)",
+      "Bash(curl -s -o /dev/null -w \"product detail: %{http_code}\\\\n\" http://localhost:3000/products/look-19)",
+      "Bash(curl -s -o /dev/null -w \"cart: %{http_code}\\\\n\" http://localhost:3000/cart)",
+      "Bash(curl -s http://localhost:3000/products -o /tmp/products_after.html)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:3000/products/look-19 -o /tmp/pdp_after.html)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

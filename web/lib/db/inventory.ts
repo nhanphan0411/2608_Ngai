@@ -1,5 +1,5 @@
 import { getDB } from "@/lib/d1";
-import type { Inventory } from "@/types/db";
+import type { Inventory, Product } from "@/types/db";
 import { deleteImagesForVariantGroup } from "@/lib/db/images";
 
 /**
@@ -130,6 +130,103 @@ export async function getVariantById(id: number): Promise<Inventory | null> {
     .first()) as Inventory | null;
 }
 
+/** Batched version of getVariantById for any number of ids — one query
+ * instead of one per id. Same "Active only" rule; an id not in the result
+ * means it doesn't exist or isn't Active, same as a null from
+ * getVariantById. */
+export async function getVariantsByIds(ids: number[]): Promise<Inventory[]> {
+  if (ids.length === 0) return [];
+
+  const db = await getDB();
+  const placeholders = ids.map(() => "?").join(",");
+
+  const { results } = await db
+    .prepare(`
+      SELECT * FROM inventory
+      WHERE id IN (${placeholders}) AND status = 'Active'
+    `)
+    .bind(...ids)
+    .all();
+
+  return results as unknown as Inventory[];
+}
+
+/**
+ * Batched version of getVariantById + getProductById + getFirstImage
+ * combined — one query for any number of variant ids instead of 3 round
+ * trips per id. Used by the cart API to resolve a whole cart in one query.
+ * Only Active variants are returned (same rule as getVariantById); a
+ * missing id in the input just won't appear in the result.
+ */
+export async function getVariantsForCart(
+  ids: number[]
+): Promise<{ variant: Inventory; product: Product; imageUrl: string | null }[]> {
+  if (ids.length === 0) return [];
+
+  const db = await getDB();
+  const placeholders = ids.map(() => "?").join(",");
+
+  const { results } = await db
+    .prepare(`
+      SELECT
+        i.id, i.product_id, i.variant_group_id,
+        i.variant1, i.value1, i.variant2, i.value2, i.variant3, i.value3,
+        i.stock, i.priceVND, i.priceUSD, i.status,
+
+        p.id AS p_id, p.collection_id AS p_collection_id,
+        p.product_name AS p_product_name, p.product_slug AS p_product_slug,
+        p.category AS p_category, p.status AS p_status,
+        p.description AS p_description, p.shipping AS p_shipping,
+        p.sizeGuide AS p_sizeGuide, p.size_guide_id AS p_size_guide_id,
+        p.notes AS p_notes, p.sort_order AS p_sort_order,
+
+        (
+          SELECT url_thumb FROM images
+          WHERE variant_group_id = i.variant_group_id
+          ORDER BY sort_order ASC, id ASC LIMIT 1
+        ) AS image_url
+
+      FROM inventory i
+      JOIN products p ON p.id = i.product_id
+      WHERE i.id IN (${placeholders}) AND i.status = 'Active'
+    `)
+    .bind(...ids)
+    .all();
+
+  return (results as any[]).map((row) => ({
+    variant: {
+      id: row.id,
+      product_id: row.product_id,
+      variant_group_id: row.variant_group_id,
+      variant1: row.variant1,
+      value1: row.value1,
+      variant2: row.variant2,
+      value2: row.value2,
+      variant3: row.variant3,
+      value3: row.value3,
+      stock: row.stock,
+      priceVND: row.priceVND,
+      priceUSD: row.priceUSD,
+      status: row.status,
+    } as Inventory,
+    product: {
+      id: row.p_id,
+      collection_id: row.p_collection_id,
+      product_name: row.p_product_name,
+      product_slug: row.p_product_slug,
+      category: row.p_category,
+      status: row.p_status,
+      description: row.p_description,
+      shipping: row.p_shipping,
+      sizeGuide: row.p_sizeGuide,
+      size_guide_id: row.p_size_guide_id,
+      notes: row.p_notes,
+      sort_order: row.p_sort_order,
+    } as Product,
+    imageUrl: row.image_url ?? null,
+  }));
+}
+
 /** Same as getVariantById, but includes Draft rows — needed internally
  * before deleting, where "Active only" would hide a row that still
  * needs cleanup. */
@@ -175,33 +272,6 @@ export async function getValue2Options(
     .all();
 
   return results as unknown as { value2: string }[];
-}
-
-export async function saveInventory(inventory: Inventory[]): Promise<void> {
-  const db = await getDB();
-
-  await db.prepare(`DELETE FROM inventory`).run();
-
-  const stmt = db.prepare(`
-    INSERT INTO inventory (
-      id, product_id, variant_group_id,
-      variant1, value1, variant2, value2, variant3, value3,
-      stock, priceVND, priceUSD, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const batch = [];
-  for (const item of inventory) {
-    const v = withVariantDefaults(item);
-    const groupId = await findOrCreateVariantGroup(v.product_id, v.value1!, v.value2);
-    batch.push(stmt.bind(
-      v.id, v.product_id, groupId,
-      v.variant1, v.value1, v.variant2, v.value2, v.variant3, v.value3,
-      v.stock, v.priceVND, v.priceUSD, v.status
-    ));
-  }
-
-  if (batch.length > 0) await db.batch(batch);
 }
 
 export async function createVariant(item: Omit<Inventory, "id" | "variant_group_id">) {

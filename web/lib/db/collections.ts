@@ -83,24 +83,6 @@ export async function updateCollectionSortOrders(
   }
 }
 
-export async function saveCollections(collections: Collection[]): Promise<void> {
-  const db = await getDB();
-
-  await db.prepare(`DELETE FROM collections`).run();
-
-  const stmt = db.prepare(`
-    INSERT INTO collections (
-      id, collection_name, collection_slug, description, status
-    ) VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const batch = collections.map((c) =>
-    stmt.bind(c.id, c.collection_name, c.collection_slug, c.description, c.status)
-  );
-
-  if (batch.length > 0) await db.batch(batch);
-}
-
 export async function createCollection(collection: Omit<Collection, "id">): Promise<number> {
   const db = await getDB();
 
