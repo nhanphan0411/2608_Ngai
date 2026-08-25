@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { processImage } from "@/lib/imageProcessing";
 import CollectionGallery from "@/components/CollectionGallery";
 import type { CollectionLayoutStyle } from "@/types/db";
@@ -10,17 +10,28 @@ type StagedPhoto =
   | { kind: "existing"; id: number; url: string }
   | { kind: "new"; tempId: string; file: File; previewUrl: string };
 
-export default function CollectionPhotoManager({
+// The parent page owns the single "save everything" button, so the only
+// way it can trigger a photo sync is through this imperative handle —
+// there's no submit button inside this component anymore.
+export type CollectionPhotoManagerHandle = {
+  hasUnsavedChanges: () => boolean;
+  save: (collectionId: number, collectionSlug: string) => Promise<{ ok: boolean; error?: string }>;
+};
+
+const CollectionPhotoManager = forwardRef<
+  CollectionPhotoManagerHandle,
+  {
+    // undefined while the collection hasn't been created yet — photos can
+    // still be staged locally and get synced once the parent has an id.
+    collectionId: number | undefined;
+    layoutStyle: CollectionLayoutStyle;
+    onLayoutStyleChange: (style: CollectionLayoutStyle) => void;
+  }
+>(function CollectionPhotoManager({
   collectionId,
-  collectionSlug,
   layoutStyle,
   onLayoutStyleChange,
-}: {
-  collectionId: number;
-  collectionSlug: string;
-  layoutStyle: CollectionLayoutStyle;
-  onLayoutStyleChange: (style: CollectionLayoutStyle) => void;
-}) {
+}, ref) {
   const [staged, setStaged] = useState<StagedPhoto[]>([]);
   const [originalIds, setOriginalIds] = useState<number[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -113,7 +124,7 @@ export default function CollectionPhotoManager({
 
   const previewPhotos = staged.map((s) => ({ id: keyOf(s), url: urlOf(s) }));
 
-  async function handleSave() {
+  const performSave = useCallback(async (targetCollectionId: number, targetCollectionSlug: string) => {
     setSyncing(true);
     setError(null);
 
@@ -135,8 +146,8 @@ export default function CollectionPhotoManager({
       );
 
       const formData = new FormData();
-      formData.append("collection_id", String(collectionId));
-      formData.append("collection_slug", collectionSlug);
+      formData.append("collection_id", String(targetCollectionId));
+      formData.append("collection_slug", targetCollectionSlug);
       formData.append("deleteIds", JSON.stringify(deleteIds));
       formData.append("order", JSON.stringify(order));
 
@@ -166,14 +177,30 @@ export default function CollectionPhotoManager({
       setOriginalIds(data.photos.map((p) => p.id));
       setDirty(false);
 
-      if (data.failures?.length) setError(data.failures.join(" "));
+      if (data.failures?.length) {
+        setError(data.failures.join(" "));
+        return { ok: false, error: data.failures.join(" ") };
+      }
+
+      return { ok: true };
     } catch (err) {
       console.error(err);
-      setError("Something went wrong saving these photos. Please try again.");
+      const message = "Something went wrong saving these photos. Please try again.";
+      setError(message);
+      return { ok: false, error: message };
     } finally {
       setSyncing(false);
     }
-  }
+  }, [staged, originalIds]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      hasUnsavedChanges: () => dirty,
+      save: performSave,
+    }),
+    [dirty, performSave]
+  );
 
   return (
     <div className="w-full">
@@ -222,14 +249,15 @@ export default function CollectionPhotoManager({
             className="hidden"
           />
 
-          <button
-            type="button"
-            disabled={!dirty || syncing}
-            onClick={handleSave}
-            className="bg-green-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {syncing ? "Saving…" : "Save Photos"}
-          </button>
+          {syncing && (
+            <span className="text-xs font-medium text-gray-500">Saving photos…</span>
+          )}
+
+          {!syncing && dirty && (
+            <span className="text-xs font-medium text-amber-600">
+              Unsaved photo changes — use the save button below
+            </span>
+          )}
         </div>
       </div>
 
@@ -382,4 +410,6 @@ export default function CollectionPhotoManager({
       )}
     </div>
   );
-}
+});
+
+export default CollectionPhotoManager;

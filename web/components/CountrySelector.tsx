@@ -67,7 +67,7 @@ export default function CountrySelector() {
         <select
             value={country}
             onChange={(e) => changeCountry(e.target.value)}
-            className="block truncate px-2 py-1 text-sm max-w-[140px] border rounded border-dotted"
+            className="block truncate px-2 py-0 text-sm max-w-[100px] border rounded border-dotted"
         >
             {countries.map((c) => (
                 <option key={c.code} value={c.code}>

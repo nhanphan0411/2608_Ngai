@@ -99,7 +99,11 @@ export default function ProductOptions({
             </div>
 
             <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto sm:border-l border-none">
-                {product.category && <p className="mb-3 text-xs text-gray-500">{product.category}</p>}
+                {product.category && (
+                    <a href={`/categories/${product.category.toLowerCase().replace(/\s+/g, "-")}`}>
+                        <p className="mb-3 text-xs text-gray-500">{product.category}</p>
+                    </a>
+                )}
                 <p className="font-bold uppercase">{product.product_name}</p>
                 <p className="mt-3 text-lg">{selectedVariant ? formatPrice(selectedVariant.priceVND, selectedVariant.priceUSD, currency) : "Select options"}</p>
                 {product.description && <div className="mt-4 text-xs leading-6 whitespace-pre-line">{product.description}</div>}

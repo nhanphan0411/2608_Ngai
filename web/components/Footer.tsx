@@ -25,7 +25,7 @@ export default function Footer() {
 
         {/* Country */}
         <div className="flex items-center justify-center px-5 text-sm gap-1 ">
-          REGION: <CountrySelector />
+          DELIVER TO: <CountrySelector />
         </div>
 
         {/* Copyright */}

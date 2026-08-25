@@ -60,7 +60,7 @@ export default function RegionSelect({ className = "" }: { className?: string })
 
     return (
         <div className="flex w-full flex-row flex-nowrap items-center">
-        <span className="max-sm:w-[50%] shrink-0 sm:hidden">REGION: </span>
+        <span className="max-sm:w-[50%] shrink-0 sm:hidden">DELIVER TO: </span>
         <select
             value={country}
             onChange={(e) => changeCountry(e.target.value)}

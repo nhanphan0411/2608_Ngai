@@ -26,10 +26,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as Omit<Collection,"id">;
 
-    await createCollection(body);
+    const id = await createCollection(body);
 
     return NextResponse.json({
       success: true,
+      id,
     });
   } catch (err) {
     console.error("POST /api/admin/collections failed:", err);

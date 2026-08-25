@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import CollectionPhotoManager from "@/components/admin/CollectionPhotoManager";
+import { useEffect, useRef, useState } from "react";
+import CollectionPhotoManager, {
+  type CollectionPhotoManagerHandle,
+} from "@/components/admin/CollectionPhotoManager";
 import type { CollectionLayoutStyle } from "@/types/db";
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const photoManagerRef = useRef<CollectionPhotoManagerHandle>(null);
 
   const emptyForm = {
     id: undefined as number | undefined,
@@ -36,38 +40,52 @@ export default function CollectionsPage() {
     setForm(emptyForm);
   }
 
+  // One button saves everything currently being edited: the collection's
+  // own fields (including layout_style, toggled below) and, via the photo
+  // manager's imperative handle, any staged editorial-photo changes. For a
+  // brand-new collection there's no id yet to sync photos against, so the
+  // collection is created first and the returned id is used for the photo
+  // sync that follows.
   async function saveCollection() {
-    const method = form.id ? "PUT" : "POST";
+    setSaving(true);
 
-    await fetch("/api/admin/collections", {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    });
+    try {
+      let id = form.id;
 
-    await loadCollections();
-    newCollection();
+      if (!id) {
+        const res = await fetch("/api/admin/collections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+
+        const data = (await res.json()) as { id: number };
+        id = data.id;
+      } else {
+        await fetch("/api/admin/collections", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+      }
+
+      if (id && photoManagerRef.current?.hasUnsavedChanges()) {
+        await photoManagerRef.current.save(id, form.collection_slug);
+      }
+
+      await loadCollections();
+      newCollection();
+    } finally {
+      setSaving(false);
+    }
   }
 
-  // Layout style lives on the collection row, but is edited from within
-  // the Photo Manager (right next to the preview it affects) rather than
-  // the form above. Persist it immediately on toggle so it isn't lost if
-  // the admin navigates away without hitting "Update Collection".
-  async function handleLayoutStyleChange(style: CollectionLayoutStyle) {
-    if (!form.id) return;
-
-    const updated = { ...form, layout_style: style };
-    setForm(updated);
-
-    await fetch("/api/admin/collections", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
-    });
-
-    await loadCollections();
+  // Layout style lives on the collection row but is toggled from within the
+  // Photo Manager (right next to the preview it affects). It's just local
+  // form state here — it's persisted, along with everything else, when the
+  // save button below is clicked.
+  function handleLayoutStyleChange(style: CollectionLayoutStyle) {
+    setForm((f) => ({ ...f, layout_style: style }));
   }
 
   async function deleteCollection(id: number) {
@@ -240,9 +258,17 @@ export default function CollectionsPage() {
           )}
         </section>
 
-        {/* ================= FORM ================= */}
+      </div>
 
-        <section className="mb-8 border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
+      {/* ================= EDIT SECTION ================= */}
+      {/* Collection info and Editorial Photos live in one connected card —
+          both are part of the same edit, and are saved together by the
+          single button at the very end. Full-width (outside the div above)
+          so the photo preview renders at the same width the real
+          collection page would use. */}
+
+      <section className="mb-8 border border-gray-200 bg-white shadow-sm sm:mb-12">
+        <div className="p-4 sm:p-6">
           <div className="mb-4 sm:mb-5">
             <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
               {form.id ? "Edit Collection" : "New Collection"}
@@ -297,7 +323,7 @@ export default function CollectionsPage() {
             />
           </div>
 
-          <div className="mb-4">
+          <div>
             <label className={labelClass}>Status</label>
 
             <select
@@ -314,42 +340,41 @@ export default function CollectionsPage() {
               <option>Draft</option>
             </select>
           </div>
+        </div>
 
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:mt-6 sm:flex-row sm:justify-end sm:gap-3">
-            {form.id && (
-              <button
-                onClick={newCollection}
-                className="w-full border border-gray-200 px-4 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:w-auto"
-              >
-                Cancel edit
-              </button>
-            )}
+        {/* Rendered even for a not-yet-created collection so photos can be
+            staged up front — the save button below creates the collection
+            and syncs these staged photos in one go. */}
+        <div className="border-t border-gray-100 p-4 sm:p-6">
+          <CollectionPhotoManager
+            ref={photoManagerRef}
+            collectionId={form.id}
+            layoutStyle={form.layout_style ?? "grid"}
+            onLayoutStyleChange={handleLayoutStyleChange}
+          />
+        </div>
 
-            <button
-              onClick={saveCollection}
-              className="w-full bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 sm:w-auto"
-            >
-              {form.id ? "Update Collection" : "Create Collection"}
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* ================= EDITORIAL PHOTOS ================= */}
-      {/* Full-width (not boxed inside max-w-5xl above) so the live preview
-          renders at the same width the real collection page would use. */}
-      <section className="mb-8 border border-gray-200 bg-white p-4 shadow-sm sm:mb-12 sm:p-6">
-        <div className="mb-4 sm:mb-5">
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-end sm:gap-3 sm:p-6">
           {form.id && (
-            <div className="mb-12">
-              <CollectionPhotoManager
-                collectionId={form.id}
-                collectionSlug={form.collection_slug}
-                layoutStyle={form.layout_style ?? "grid"}
-                onLayoutStyleChange={handleLayoutStyleChange}
-              />
-            </div>
+            <button
+              onClick={newCollection}
+              className="w-full border border-gray-200 px-4 py-2.5 text-sm text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:w-auto"
+            >
+              Cancel edit
+            </button>
           )}
+
+          <button
+            onClick={saveCollection}
+            disabled={saving}
+            className="w-full bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {saving
+              ? "Saving…"
+              : form.id
+                ? "Save Collection"
+                : "Add New Collection"}
+          </button>
         </div>
       </section>
     </div>

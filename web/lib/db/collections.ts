@@ -84,10 +84,10 @@ export async function saveCollections(collections: Collection[]): Promise<void> 
   if (batch.length > 0) await db.batch(batch);
 }
 
-export async function createCollection(collection: Omit<Collection, "id">) {
+export async function createCollection(collection: Omit<Collection, "id">): Promise<number> {
   const db = await getDB();
 
-  await db.prepare(`
+  const result = await db.prepare(`
     INSERT INTO collections (
       collection_name, collection_slug, description, status, layout_style
     ) VALUES (?, ?, ?, ?, ?)
@@ -100,6 +100,8 @@ export async function createCollection(collection: Omit<Collection, "id">) {
     collection.layout_style ?? "grid"
   )
   .run();
+
+  return Number(result.meta.last_row_id);
 }
 
 /**

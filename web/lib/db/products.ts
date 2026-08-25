@@ -3,7 +3,7 @@ import { Product } from "@/types/db";
 import { deleteImagesForProduct } from "@/lib/db/images";
 import { deleteInventoryForProduct, deleteVariantGroupsForProduct } from "@/lib/db/inventory";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 18;
 
 export async function getAllProductsPaginated(page: number): Promise<{ products: Product[]; total: number }> {
   const db = await getDB();
