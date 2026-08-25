@@ -6,6 +6,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  updateProductSortOrders,
 } from "@/lib/db/products";
 
 import type { Product } from "@/types/db";
@@ -52,6 +53,18 @@ export async function DELETE(req: NextRequest) {
   };
 
   await deleteProduct(id);
+
+  return NextResponse.json({
+    success: true,
+  });
+}
+
+export async function PATCH(req: NextRequest) {
+  const { order } = await req.json() as {
+    order: { id: number; sort_order: number }[];
+  };
+
+  await updateProductSortOrders(order);
 
   return NextResponse.json({
     success: true,

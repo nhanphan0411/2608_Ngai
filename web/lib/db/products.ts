@@ -5,107 +5,92 @@ import { deleteInventoryForProduct, deleteVariantGroupsForProduct } from "@/lib/
 
 const PAGE_SIZE = 18;
 
-export async function getAllProductsPaginated(page: number): Promise<{ products: Product[]; total: number }> {
-  const db = await getDB();
-  const offset = (page - 1) * PAGE_SIZE;
+export const PRODUCTS_PAGE_SIZE = PAGE_SIZE;
 
-  const { results } = await db
-    .prepare(`SELECT * FROM products WHERE status = 'Active' ORDER BY id LIMIT ? OFFSET ?`)
-    .bind(PAGE_SIZE, offset)
-    .all();
+export type ProductSort = "feature" | "name";
 
-  const countRow = await db
-    .prepare(`SELECT COUNT(*) as count FROM products WHERE status = 'Active'`)
-    .first<{ count: number }>();
-
-  return {
-    products: results as unknown as Product[],
-    total: countRow?.count ?? 0,
-  };
-}
-
-export async function getProductsByCollectionPaginated(
-  collectionId: number,
-  page: number
-): Promise<{ products: Product[]; total: number }> {
-  const db = await getDB();
-  const offset = (page - 1) * PAGE_SIZE;
-
-  const { results } = await db
-    .prepare(`
-      SELECT * FROM products
-      WHERE collection_id = ? AND status = 'Active'
-      ORDER BY id LIMIT ? OFFSET ?
-    `)
-    .bind(collectionId, PAGE_SIZE, offset)
-    .all();
-
-  const countRow = await db
-    .prepare(`SELECT COUNT(*) as count FROM products WHERE collection_id = ? AND status = 'Active'`)
-    .bind(collectionId)
-    .first<{ count: number }>();
-
-  return {
-    products: results as unknown as Product[],
-    total: countRow?.count ?? 0,
-  };
-}
-
-export async function getProductsByCategoryPaginated(
-  categoryName: string,
-  page: number
-): Promise<{ products: Product[]; total: number }> {
-  const db = await getDB();
+function categoryCondition(categoryName: string): { clause: string; args: string[] } {
   const target = categoryName.trim().toLowerCase();
-  const offset = (page - 1) * PAGE_SIZE;
 
-  const whereClause = `
-    status = 'Active'
-    AND (
+  return {
+    clause: `(
       LOWER(TRIM(category)) = ?
       OR LOWER(category) LIKE ?
       OR LOWER(category) LIKE ?
       OR LOWER(category) LIKE ?
-    )
-  `;
-  const bindArgs = [
-    target,
-    `${target}, %`,
-    `%, ${target}, %`,
-    `%, ${target}`,
-  ];
+    )`,
+    args: [target, `${target}, %`, `%, ${target}, %`, `%, ${target}`],
+  };
+}
+
+/**
+ * The single product-listing query behind /products, /collections/[slug]
+ * and /categories/[slug] — collection and category are independent,
+ * combinable filters, and sort is either the admin-curated display order
+ * ("feature": each product's collection's sort_order, then its own
+ * sort_order within that collection — so /products reads as collections in
+ * their curated order, each one's products in their curated order) or
+ * alphabetical by name.
+ */
+export async function getProductsFiltered({
+  collectionId,
+  categoryName,
+  sort = "feature",
+  page,
+}: {
+  collectionId?: number;
+  categoryName?: string;
+  sort?: ProductSort;
+  page: number;
+}): Promise<{ products: Product[]; total: number }> {
+  const db = await getDB();
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const conditions = ["products.status = 'Active'"];
+  const args: (string | number)[] = [];
+
+  if (collectionId) {
+    conditions.push("products.collection_id = ?");
+    args.push(collectionId);
+  }
+
+  if (categoryName) {
+    const { clause, args: catArgs } = categoryCondition(categoryName);
+    conditions.push(clause);
+    args.push(...catArgs);
+  }
+
+  const whereClause = conditions.join(" AND ");
+
+  const orderClause =
+    sort === "name"
+      ? "products.product_name ASC"
+      : "collections.sort_order ASC, products.sort_order ASC, products.id ASC";
 
   const { results } = await db
-    .prepare(`SELECT * FROM products WHERE ${whereClause} ORDER BY id LIMIT ? OFFSET ?`)
-    .bind(...bindArgs, PAGE_SIZE, offset)
+    .prepare(`
+      SELECT products.* FROM products
+      JOIN collections ON collections.id = products.collection_id
+      WHERE ${whereClause}
+      ORDER BY ${orderClause}
+      LIMIT ? OFFSET ?
+    `)
+    .bind(...args, PAGE_SIZE, offset)
     .all();
 
   const countRow = await db
-    .prepare(`SELECT COUNT(*) as count FROM products WHERE ${whereClause}`)
-    .bind(...bindArgs)
+    .prepare(`
+      SELECT COUNT(*) as count FROM products
+      JOIN collections ON collections.id = products.collection_id
+      WHERE ${whereClause}
+    `)
+    .bind(...args)
     .first<{ count: number }>();
 
   return {
     products: results as unknown as Product[],
     total: countRow?.count ?? 0,
   };
-}
-
-export const PRODUCTS_PAGE_SIZE = PAGE_SIZE;
-
-export async function getProductsByCollection(collectionId: number): Promise<Product[]> {
-  const db = await getDB();
-
-  const { results } = await db
-    .prepare(`
-      SELECT * FROM products
-      WHERE collection_id = ? AND status = 'Active'
-      ORDER BY id
-    `)
-    .bind(collectionId)
-    .all();
-
-  return results as unknown as Product[];
 }
 
 /**
@@ -142,21 +127,11 @@ export async function getProductById(id: number): Promise<Product | null> {
     .first()) as Product | null;
 }
 
-export async function getAllProducts(): Promise<Product[]> {
-  const db = await getDB();
-
-  const { results } = await db
-    .prepare(`SELECT * FROM products WHERE status = 'Active' ORDER BY id`)
-    .all();
-
-  return results as unknown as Product[];
-}
-
 export async function getProductsByCollectionAdmin(collectionId: number): Promise<Product[]> {
   const db = await getDB();
 
   const { results } = await db
-    .prepare(`SELECT * FROM products WHERE collection_id = ? ORDER BY id`)
+    .prepare(`SELECT * FROM products WHERE collection_id = ? ORDER BY sort_order ASC, id ASC`)
     .bind(collectionId)
     .all();
 
@@ -196,16 +171,24 @@ export async function getAllProductsAdmin(): Promise<Product[]> {
 export async function createProduct(product: Omit<Product, "id">) {
   const db = await getDB();
 
+  // New products join at the end of their collection's display order —
+  // ordering itself only changes via the dedicated reorder endpoint.
+  const maxOrder = await db
+    .prepare(`SELECT COALESCE(MAX(sort_order), 0) AS max FROM products WHERE collection_id = ?`)
+    .bind(product.collection_id)
+    .first<{ max: number }>();
+
   await db.prepare(`
     INSERT INTO products (
       collection_id, product_name, product_slug,
-      category, status, description, shipping, sizeGuide, size_guide_id, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      category, status, description, shipping, sizeGuide, size_guide_id, notes, sort_order
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   .bind(
     product.collection_id, product.product_name, product.product_slug,
     product.category, product.status, product.description,
-    product.shipping, product.sizeGuide, product.size_guide_id, product.notes
+    product.shipping, product.sizeGuide, product.size_guide_id, product.notes,
+    (maxOrder?.max ?? 0) + 1
   )
   .run();
 }
@@ -237,6 +220,24 @@ export async function updateProduct(product: Product) {
 }
 
 /**
+ * Batch-applies a new display order within one collection — called from
+ * the admin drag-to-reorder UI. Same shape/pattern as
+ * updateCollectionSortOrders / updateCollectionPhotoSortOrders.
+ */
+export async function updateProductSortOrders(
+  order: { id: number; sort_order: number }[]
+): Promise<void> {
+  const db = await getDB();
+
+  const stmt = db.prepare(`UPDATE products SET sort_order = ? WHERE id = ?`);
+  const batch = order.map((item) => stmt.bind(item.sort_order, item.id));
+
+  if (batch.length > 0) {
+    await db.batch(batch);
+  }
+}
+
+/**
  * Deletes a product and cascades cleanup to its inventory rows and
  * images (DB rows + R2 objects) — without this, both accumulate
  * forever as invisible orphans every time a product is removed.
@@ -250,32 +251,4 @@ export async function deleteProduct(id: number) {
 
   await db.prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
 
-}
-
-export async function getProductsByCategory(categoryName: string): Promise<Product[]> {
-  const db = await getDB();
-
-  const target = categoryName.trim().toLowerCase();
-
-  const { results } = await db
-    .prepare(`
-      SELECT * FROM products
-      WHERE status = 'Active'
-        AND (
-          LOWER(TRIM(category)) = ?
-          OR LOWER(category) LIKE ?
-          OR LOWER(category) LIKE ?
-          OR LOWER(category) LIKE ?
-        )
-      ORDER BY id
-    `)
-    .bind(
-      target,
-      `${target}, %`,
-      `%, ${target}, %`,
-      `%, ${target}`
-    )
-    .all();
-
-  return results as unknown as Product[];
 }

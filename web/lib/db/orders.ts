@@ -77,9 +77,10 @@ export async function createOrderWithDetails(
         subtotal,
         currency,
         idempotency_key,
-        shipping_fee
+        shipping_fee,
+        country
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .bind(
       publicId,
@@ -94,7 +95,8 @@ export async function createOrderWithDetails(
       subtotal,
       order.currency,
       order.idempotency_key ?? null,
-      order.shipping_fee ?? 0
+      order.shipping_fee ?? 0,
+      order.country
     )
     .run();
   const orderId = Number(orderResult.meta.last_row_id);

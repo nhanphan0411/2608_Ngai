@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import RegionSelect from "./RegionSelect";
+import CountrySelector from "@/components/CountrySelector";
 
 const navLinkClass =
   "flex items-center justify-start bg-[#F2F2F2]  px-3 py-1 text-sm uppercase tracking-wide leading-none text-left";
@@ -56,7 +56,7 @@ export function DesktopNav() {
       </Link>
 
       <div className="flex min-w-0 items-center justify-start px-3 py-0 bg-[#F2F2F2] ">
-        <RegionSelect className="w-full min-w-0 text-left" />
+        <CountrySelector variant="nav" className="w-full min-w-0 text-left" />
       </div>
     </nav>
   );
@@ -109,7 +109,7 @@ export function MobileNav() {
           </Link>
 
           <div className="px-3 py-2 text-sm">
-            <RegionSelect className="w-full min-w-0 text-left" />
+            <CountrySelector variant="nav" className="w-full min-w-0 text-left" />
           </div>
         </nav>
       </div>

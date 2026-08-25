@@ -208,7 +208,7 @@ const CollectionPhotoManager = forwardRef<
 
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Editorial Photos</h2>
+          <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Collection Photos</h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

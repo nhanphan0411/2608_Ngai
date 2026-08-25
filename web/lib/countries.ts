@@ -4,6 +4,14 @@ export function getCurrencyFromCountry(countryCode?: string): Currency {
   return countryCode?.toUpperCase() === "VN" ? "VND" : "USD";
 }
 
+// Vietnam gets the domestic flat shipping fee; every other country gets the
+// international flat fee. This is the single rule shipping-fee calculation
+// keys off — both client-side previews and the authoritative server-side
+// calculation in the orders API use this same function.
+export function isVietnam(countryCode?: string | null): boolean {
+  return countryCode?.toUpperCase() === "VN";
+}
+
 export const COUNTRY_CODES = [
   "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ",
   "BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS",

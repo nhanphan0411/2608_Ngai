@@ -6,6 +6,7 @@ import {
   createCollection,
   updateCollection,
   deleteCollection,
+  updateCollectionSortOrders,
 } from "@/lib/db/collections";
 
 import type { Collection } from "@/types/db";
@@ -52,6 +53,26 @@ export async function PUT(req: NextRequest) {
     });
   } catch (err) {
     console.error("PUT /api/admin/collections failed:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { order } = await req.json() as {
+      order: { id: number; sort_order: number }[];
+    };
+
+    await updateCollectionSortOrders(order);
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (err) {
+    console.error("PATCH /api/admin/collections failed:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500 }

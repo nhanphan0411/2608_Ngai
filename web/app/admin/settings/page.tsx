@@ -173,7 +173,7 @@ export default function SettingsPage() {
         <div className="sm:w-[80%] w-full">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Flat shipping fee (VND)</label>
+              <label className={labelClass}>Vietnam flat shipping fee (VND)</label>
               <input
                 type="number"
                 className={inputClass}
@@ -183,7 +183,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>Flat shipping fee (USD)</label>
+              <label className={labelClass}>International flat shipping fee (USD)</label>
               <input
                 type="number"
                 step="0.01"
@@ -195,7 +195,8 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            Applied as a flat fee added to every order at checkout. Set to 0 for free shipping.
+            Applied based on the shipping country selected at checkout: Vietnam gets the VND fee,
+            every other country gets the USD fee. Set to 0 for free shipping.
           </p>
         </div>
       </section>

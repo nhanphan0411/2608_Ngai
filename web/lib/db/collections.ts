@@ -29,41 +29,58 @@ export async function getAllCollectionsAdmin(): Promise<Collection[]> {
   const db = await getDB();
 
   return queryAll<Collection>(
-    db.prepare(`SELECT * FROM collections ORDER BY id`)
+    db.prepare(`SELECT * FROM collections ORDER BY sort_order ASC, id ASC`)
   );
 }
 
 /** Public-facing list for things like the collection page's "switch
- * collection" dropdown — only ever shows collections that are live. */
+ * collection" dropdown — only ever shows collections that are live, in
+ * the admin-curated display order. */
 export async function getActiveCollections(): Promise<Collection[]> {
   const db = await getDB();
 
   return queryAll<Collection>(
     db
-      .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY collection_name`)
+      .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY sort_order ASC, id ASC`)
   );
 }
 
 /**
- * Most-recently-created live collection — used to send visitors of the bare
- * /collections route straight to a collection page instead of an index.
- * Collections have no created_at column, so "latest" is the highest id
- * (ids are assigned in insertion order). Falls back to any collection
+ * The first collection in the admin-curated display order — used to send
+ * visitors of the bare /collections route straight to a collection page
+ * instead of an index. Falls back to the first collection overall
  * (regardless of status) if nothing is Active, so the route still resolves
  * while a store is being set up.
  */
-export async function getLatestCollection(): Promise<Collection | null> {
+export async function getFirstCollection(): Promise<Collection | null> {
   const db = await getDB();
 
   const active = (await db
-    .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY id DESC LIMIT 1`)
+    .prepare(`SELECT * FROM collections WHERE status = 'Active' ORDER BY sort_order ASC, id ASC LIMIT 1`)
     .first()) as Collection | null;
 
   if (active) return active;
 
   return (await db
-    .prepare(`SELECT * FROM collections ORDER BY id DESC LIMIT 1`)
+    .prepare(`SELECT * FROM collections ORDER BY sort_order ASC, id ASC LIMIT 1`)
     .first()) as Collection | null;
+}
+
+/**
+ * Batch-applies a new display order — called from the admin drag-to-reorder
+ * UI. Same shape/pattern as updateCollectionPhotoSortOrders.
+ */
+export async function updateCollectionSortOrders(
+  order: { id: number; sort_order: number }[]
+): Promise<void> {
+  const db = await getDB();
+
+  const stmt = db.prepare(`UPDATE collections SET sort_order = ? WHERE id = ?`);
+  const batch = order.map((item) => stmt.bind(item.sort_order, item.id));
+
+  if (batch.length > 0) {
+    await db.batch(batch);
+  }
 }
 
 export async function saveCollections(collections: Collection[]): Promise<void> {
@@ -87,17 +104,25 @@ export async function saveCollections(collections: Collection[]): Promise<void> 
 export async function createCollection(collection: Omit<Collection, "id">): Promise<number> {
   const db = await getDB();
 
+  // New collections join at the end of the display order — ordering
+  // itself is only ever changed via the dedicated reorder endpoint, not
+  // by whatever (irrelevant) value the create form happens to send.
+  const maxOrder = await db
+    .prepare(`SELECT COALESCE(MAX(sort_order), 0) AS max FROM collections`)
+    .first<{ max: number }>();
+
   const result = await db.prepare(`
     INSERT INTO collections (
-      collection_name, collection_slug, description, status, layout_style
-    ) VALUES (?, ?, ?, ?, ?)
+      collection_name, collection_slug, description, status, layout_style, sort_order
+    ) VALUES (?, ?, ?, ?, ?, ?)
   `)
   .bind(
     collection.collection_name,
     collection.collection_slug,
     collection.description,
     collection.status,
-    collection.layout_style ?? "grid"
+    collection.layout_style ?? "grid",
+    (maxOrder?.max ?? 0) + 1
   )
   .run();
 

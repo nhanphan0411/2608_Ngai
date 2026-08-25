@@ -1,73 +1,104 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { setCurrency } from "@/lib/currency";
-import { COUNTRY_CODES, getCurrencyFromCountry } from "@/lib/countries";
+import {
+    buildCountryList,
+    getCountry,
+    initCountry,
+    setCountry,
+    type CountryOption,
+} from "@/lib/country";
 
-type Country = {
-    code: string;
-    name: string;
-};
+type Variant = "footer" | "nav" | "checkout";
 
-function buildCountryList(): Country[] {
-    const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
-
-    return COUNTRY_CODES
-        .map((code) => ({
-            code,
-            name: displayNames.of(code) ?? code,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export default function CountrySelector() {
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [country, setCountry] = useState("");
+// One control, one source of truth (see lib/country.ts) — the display
+// differs per page via `variant`, but selecting a country here changes it
+// everywhere else it's shown, including the checkout form. That's what
+// makes shipping-fee calculation trustworthy: whichever country the
+// shopper picked is the same one the order form submits.
+export default function CountrySelector({
+    variant = "footer",
+    className = "",
+}: {
+    variant?: Variant;
+    className?: string;
+}) {
+    const [countries, setCountries] = useState<CountryOption[]>([]);
+    const [country, setCountryState] = useState("");
 
     useEffect(() => {
-        async function init() {
-            // Country name list — generated locally, no network call
-            setCountries(buildCountryList());
+        setCountries(buildCountryList());
 
-            const saved = localStorage.getItem("country");
+        const saved = getCountry();
 
-            if (saved) {
-                setCountry(saved);
-                setCurrency(getCurrencyFromCountry(saved));
-                return;
-            }
-
-            // No saved preference yet — ask the server for IP-based geo
-            try {
-                const geoRes = await fetch("/api/country");
-                const geo = await (geoRes.json() as any);
-
-                setCountry(geo.country);
-                localStorage.setItem("country", geo.country);
-                setCurrency(getCurrencyFromCountry(geo.country));
-            } catch (err) {
-                // Geo lookup failed — fall back to a safe default instead of crashing
-                console.error("Country geo-lookup failed, defaulting to VN:", err);
-                setCountry("VN");
-                localStorage.setItem("country", "VN");
-                setCurrency(getCurrencyFromCountry("VN"));
-            }
+        if (saved) {
+            setCountryState(saved);
+        } else {
+            initCountry().then(setCountryState);
         }
 
-        init();
+        function onCountryChange() {
+            setCountryState(getCountry());
+        }
+
+        window.addEventListener("country-change", onCountryChange);
+        return () => window.removeEventListener("country-change", onCountryChange);
     }, []);
 
-    function changeCountry(code: string) {
+    function handleChange(code: string) {
         setCountry(code);
-        localStorage.setItem("country", code);
-        setCurrency(getCurrencyFromCountry(code));
+        setCountryState(code);
     }
 
+    if (variant === "nav") {
+        return (
+            <div className="flex w-full flex-row flex-nowrap items-center">
+                <span className="max-sm:w-[50%] shrink-0 sm:hidden">DELIVER TO: </span>
+                <select
+                    value={country}
+                    onChange={(e) => handleChange(e.target.value)}
+                    className={`block max-sm:w-[50%] min-w-0 max-w-full truncate overflow-hidden bg-transparent text-left text-sm uppercase tracking-wide outline-none sm:w-full ${className} cursor-pointer`}
+                >
+                    <option value="" disabled>
+                        select region
+                    </option>
+                    {countries.map((c) => (
+                        <option key={c.code} value={c.code}>
+                            {c.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        );
+    }
+
+    if (variant === "checkout") {
+        return (
+            <select
+                name="country"
+                required
+                value={country}
+                onChange={(e) => handleChange(e.target.value)}
+                className={`w-full appearance-none border border-black bg-white px-3 py-3 text-sm outline-none focus:bg-gray-50 ${className}`}
+            >
+                <option value="" disabled>
+                    Country
+                </option>
+                {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                        {c.name}
+                    </option>
+                ))}
+            </select>
+        );
+    }
+
+    // "footer" (default)
     return (
         <select
             value={country}
-            onChange={(e) => changeCountry(e.target.value)}
-            className="block truncate px-2 py-0 text-sm max-w-[100px] border rounded border-dotted"
+            onChange={(e) => handleChange(e.target.value)}
+            className={`block truncate px-2 py-0 text-sm max-w-[100px] border rounded border-dotted ${className}`}
         >
             {countries.map((c) => (
                 <option key={c.code} value={c.code}>

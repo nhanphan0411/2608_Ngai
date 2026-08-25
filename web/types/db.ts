@@ -7,6 +7,7 @@ export interface Collection {
   description: string | null;
   status: string;
   layout_style: CollectionLayoutStyle;
+  sort_order: number;
 }
 
 export interface CollectionPhoto {
@@ -34,6 +35,7 @@ export interface Product {
   sizeGuide: string | null;
   size_guide_id: number | null;
   notes: string | null;
+  sort_order: number;
 }
 
 export interface Inventory {
@@ -72,7 +74,8 @@ export interface Order {
   subtotal: number;
   currency: string;
   idempotency_key: string | null;
-  shipping_fee: number;   
+  shipping_fee: number;
+  country: string | null;
 }
 export interface OrderDetail {
   id: number;
@@ -103,6 +106,7 @@ export interface NewOrder {
   currency: string;
   idempotency_key?: string | null;
   shipping_fee?: number;
+  country: string | null;
 }
 
 export interface Image {

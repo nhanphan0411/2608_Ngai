@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 
 export default function ProductsPage() {
@@ -9,6 +9,9 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [sizeGuides, setSizeGuides] = useState<any[]>([]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const dragIndexRef = useRef<number | null>(null);
 
   const emptyForm = {
     id: undefined as number | undefined,
@@ -55,6 +58,43 @@ export default function ProductsPage() {
 
     const data = (await res.json()) as any[];
     setProducts(data);
+    setOrderDirty(false);
+  }
+
+  // Drag-to-reorder within the selected collection — same pattern as the
+  // Collections admin page. Local-only until "Save Order" is clicked.
+  function handleRowDrop(targetIndex: number) {
+    const from = dragIndexRef.current;
+    dragIndexRef.current = null;
+
+    if (from === null || from === targetIndex) return;
+
+    setProducts((prev) => {
+      const reordered = [...prev];
+      const [moved] = reordered.splice(from, 1);
+      reordered.splice(targetIndex, 0, moved);
+      return reordered;
+    });
+
+    setOrderDirty(true);
+  }
+
+  async function saveOrder() {
+    setSavingOrder(true);
+
+    try {
+      const order = products.map((p, i) => ({ id: p.id, sort_order: i + 1 }));
+
+      await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+
+      await loadProducts();
+    } finally {
+      setSavingOrder(false);
+    }
   }
 
   function editProduct(product: any) {
@@ -192,6 +232,24 @@ export default function ProductsPage() {
           {/* ================= PRODUCTS ================= */}
 
           <section className="mb-8 overflow-hidden border border-gray-200 bg-white shadow-sm">
+            {products.length > 0 && (
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <p className="text-xs text-gray-400">
+                  Drag rows to set display order within this collection — the Feature sort on the
+                  storefront follows this order.
+                </p>
+
+                {orderDirty && (
+                  <button
+                    onClick={saveOrder}
+                    disabled={savingOrder}
+                    className="shrink-0 bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingOrder ? "Saving…" : "Save Order"}
+                  </button>
+                )}
+              </div>
+            )}
 
             {products.length === 0 ? (
               <div className="p-8 text-center text-sm text-gray-400">
@@ -205,6 +263,7 @@ export default function ProductsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <th className="w-8 p-3"></th>
                         <th className="p-3">ID</th>
                         <th className="p-3">Name</th>
                         <th className="p-3">Category</th>
@@ -216,7 +275,7 @@ export default function ProductsPage() {
                     </thead>
 
                     <tbody>
-                      {products.map((p: any) => {
+                      {products.map((p: any, index: number) => {
                         const cats = p.category
                           ? p.category
                             .split(",")
@@ -227,8 +286,14 @@ export default function ProductsPage() {
                         return (
                           <tr
                             key={p.id}
-                            className="border-t border-gray-100 transition hover:bg-gray-50"
+                            draggable
+                            onDragStart={() => (dragIndexRef.current = index)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => handleRowDrop(index)}
+                            className="cursor-grab border-t border-gray-100 transition hover:bg-gray-50 active:cursor-grabbing"
                           >
+                            <td className="p-3 text-gray-300">⠿</td>
+
                             <td className="p-3 text-gray-500">
                               {p.id}
                             </td>
@@ -304,7 +369,7 @@ export default function ProductsPage() {
                 {/* ================= MOBILE LIST ================= */}
 
                 <div className="divide-y divide-gray-100 sm:hidden">
-                  {products.map((p: any) => {
+                  {products.map((p: any, index: number) => {
                     const cats = p.category
                       ? p.category
                         .split(",")
@@ -313,10 +378,19 @@ export default function ProductsPage() {
                       : [];
 
                     return (
-                      <div key={p.id} className="p-4">
+                      <div
+                        key={p.id}
+                        draggable
+                        onDragStart={() => (dragIndexRef.current = index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleRowDrop(index)}
+                        className="cursor-grab p-4 active:cursor-grabbing"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
+                              <span className="text-gray-300">⠿</span>
+
                               <h3 className="truncate font-medium text-gray-900">
                                 {p.product_name}
                               </h3>

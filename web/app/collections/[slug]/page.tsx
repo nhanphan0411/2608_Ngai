@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
-import { getProductsByCollectionPaginated, PRODUCTS_PAGE_SIZE } from "@/lib/db/products";
+import { getProductsFiltered, PRODUCTS_PAGE_SIZE, type ProductSort } from "@/lib/db/products";
 import { getCollectionBySlug, getActiveCollections } from "@/lib/db/collections";
 import { getCollectionPhotos } from "@/lib/db/collectionPhotos";
 import { buildProductCards } from "@/lib/db/productCards";
+import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
 import ProductGrid from "@/components/ProductGrid";
 import CollectionGallery from "@/components/CollectionGallery";
 import CollectionTopBar from "@/components/CollectionTopBar";
@@ -25,16 +26,25 @@ export default async function CollectionPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string; category?: string }>;
 }) {
   const { slug } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, sort: sortParam, category: categorySlug } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const sort: ProductSort = sortParam === "name" ? "name" : "feature";
 
   const collection = await getCollectionBySlug(slug);
   if (!collection) return notFound();
 
-  const { products, total } = await getProductsByCollectionPaginated(collection.id, page);
+  const category = categorySlug ? getCategoryBySlug(categorySlug) : undefined;
+
+  const { products, total } = await getProductsFiltered({
+    collectionId: collection.id,
+    categoryName: category?.name,
+    sort,
+    page,
+  });
+
   const cards = await buildProductCards(products);
   const photos = await getCollectionPhotos(collection.id);
 
@@ -79,6 +89,9 @@ export default async function CollectionPage({
           totalItems={total}
           pageSize={PRODUCTS_PAGE_SIZE}
           basePath={`/collections/${slug}`}
+          sort={sort}
+          categoryOptions={CATEGORIES.map((c) => ({ slug: c.slug, name: c.name }))}
+          currentCategory={category?.slug}
         />
       </div>
     </>

@@ -7,9 +7,10 @@ import { showToast } from "@/lib/toast";
 import Image from "next/image";
 
 export default function ProductOptions({
-    product, options, variants, images, sizeGuide,
+    product, collection, options, variants, images, sizeGuide,
 }: {
     product: { product_name: string; category: string | null; description?: string | null; note?: string | null };
+    collection: { collection_name: string; collection_slug: string } | null;
     options: { name: string; values: string[] }[];
     variants: any[];
     images: any[];
@@ -99,10 +100,23 @@ export default function ProductOptions({
             </div>
 
             <div className="flex flex-col px-8 py-10 md:h-screen md:w-[30vw] md:overflow-y-auto sm:border-l border-none">
-                {product.category && (
-                    <a href={`/categories/${product.category.toLowerCase().replace(/\s+/g, "-")}`}>
-                        <p className="mb-3 text-xs text-gray-500">{product.category}</p>
-                    </a>
+                {(collection || product.category) && (
+                    <p className="mb-3 text-xs text-gray-500">
+                        {collection && (
+                            <a href={`/collections/${collection.collection_slug}`} className="hover:underline">
+                                {collection.collection_name}
+                            </a>
+                        )}
+                        {collection && product.category && " / "}
+                        {product.category && (
+                            <a
+                                href={`/categories/${product.category.toLowerCase().replace(/\s+/g, "-")}`}
+                                className="hover:underline"
+                            >
+                                {product.category}
+                            </a>
+                        )}
+                    </p>
                 )}
                 <p className="font-bold uppercase">{product.product_name}</p>
                 <p className="mt-3 text-lg">{selectedVariant ? formatPrice(selectedVariant.priceVND, selectedVariant.priceUSD, currency) : "Select options"}</p>

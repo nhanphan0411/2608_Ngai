@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import CountrySelector from "@/components/CountrySelector";
 
 export default function Footer() {
   const links = [
-    "TERMS & CONDITIONS",
-    "SHIPPING & RETURNS",
-    "PRIVACY POLICY",
+    { label: "TERMS & CONDITIONS", href: "/pages/terms-and-conditions" },
+    { label: "SHIPPING & RETURNS", href: "/pages/shipping-and-returns" },
+    { label: "PRIVACY POLICY", href: "/pages/privacy-policy" },
   ];
 
   return (
@@ -14,13 +15,13 @@ export default function Footer() {
       <div className="grid sm:h-full h-auto sm:gap-0 gap-4 grid-cols-1 md:grid-cols-5">
 
         {links.map((link) => (
-          <a
-            key={link}
-            href="#"
+          <Link
+            key={link.href}
+            href={link.href}
             className="flex items-center justify-center px-5 text-center text-sm hover:underline"
           >
-            {link}
-          </a>
+            {link.label}
+          </Link>
         ))}
 
         {/* Country */}

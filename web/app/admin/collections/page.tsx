@@ -9,7 +9,10 @@ import type { CollectionLayoutStyle } from "@/types/db";
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
   const photoManagerRef = useRef<CollectionPhotoManagerHandle>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   const emptyForm = {
     id: undefined as number | undefined,
@@ -30,6 +33,44 @@ export default function CollectionsPage() {
     const res = await fetch("/api/admin/collections");
     const data = (await res.json()) as any[];
     setCollections(data);
+    setOrderDirty(false);
+  }
+
+  // Drag-to-reorder — same splice-on-drop pattern as CollectionPhotoManager's
+  // photo grid. Reordering only touches local state; it's not persisted
+  // until "Save Order" is clicked (no auto-commit).
+  function handleRowDrop(targetIndex: number) {
+    const from = dragIndexRef.current;
+    dragIndexRef.current = null;
+
+    if (from === null || from === targetIndex) return;
+
+    setCollections((prev) => {
+      const reordered = [...prev];
+      const [moved] = reordered.splice(from, 1);
+      reordered.splice(targetIndex, 0, moved);
+      return reordered;
+    });
+
+    setOrderDirty(true);
+  }
+
+  async function saveOrder() {
+    setSavingOrder(true);
+
+    try {
+      const order = collections.map((c, i) => ({ id: c.id, sort_order: i + 1 }));
+
+      await fetch("/api/admin/collections", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+
+      await loadCollections();
+    } finally {
+      setSavingOrder(false);
+    }
   }
 
   function editCollection(collection: any) {
@@ -122,10 +163,26 @@ export default function CollectionsPage() {
         {/* ================= COLLECTIONS ================= */}
 
         <section className="mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm sm:mb-8">
-          <div className="border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
-            <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
-              Collections
-            </h2>
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 sm:text-lg">
+                Collections
+              </h2>
+
+              <p className="mt-0.5 text-xs text-gray-400">
+                Drag rows to set display order — /collections and the site nav follow this order.
+              </p>
+            </div>
+
+            {orderDirty && (
+              <button
+                onClick={saveOrder}
+                disabled={savingOrder}
+                className="shrink-0 bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingOrder ? "Saving…" : "Save Order"}
+              </button>
+            )}
           </div>
 
           {collections.length === 0 ? (
@@ -140,6 +197,7 @@ export default function CollectionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                      <th className="w-8 p-3"></th>
                       <th className="p-3">ID</th>
                       <th className="p-3">Name</th>
                       <th className="p-3">Slug</th>
@@ -150,12 +208,18 @@ export default function CollectionsPage() {
                   </thead>
 
                   <tbody>
-                    {collections.map((c: any) => (
+                    {collections.map((c: any, index: number) => (
                       <tr
                         key={c.id}
-                        className={`border-t border-gray-100 transition hover:bg-gray-50 ${form.id === c.id ? "bg-blue-50" : ""
+                        draggable
+                        onDragStart={() => (dragIndexRef.current = index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleRowDrop(index)}
+                        className={`cursor-grab border-t border-gray-100 transition hover:bg-gray-50 active:cursor-grabbing ${form.id === c.id ? "bg-blue-50" : ""
                           }`}
                       >
+                        <td className="p-3 text-gray-300">⠿</td>
+
                         <td className="p-3 text-gray-500">{c.id}</td>
 
                         <td className="p-3 font-medium text-gray-800">
@@ -207,15 +271,21 @@ export default function CollectionsPage() {
               {/* ================= MOBILE LIST ================= */}
 
               <div className="divide-y divide-gray-100 sm:hidden">
-                {collections.map((c: any) => (
+                {collections.map((c: any, index: number) => (
                   <div
                     key={c.id}
-                    className={`p-4 transition ${form.id === c.id ? "bg-blue-50" : ""
+                    draggable
+                    onDragStart={() => (dragIndexRef.current = index)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleRowDrop(index)}
+                    className={`cursor-grab p-4 transition active:cursor-grabbing ${form.id === c.id ? "bg-blue-50" : ""
                       }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
+                          <span className="text-gray-300">⠿</span>
+
                           <h3 className="truncate font-medium text-gray-900">
                             {c.collection_name}
                           </h3>

@@ -3,18 +3,38 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrency } from "@/lib/currency";
-import OrderItems from "@/components/orders/OrderItems";
+import { getCountry } from "@/lib/country";
+import { isVietnam } from "@/lib/countries";
+import CountrySelector from "@/components/CountrySelector";
 
 export default function CheckoutPage() {
     const router = useRouter();
     const [idempotencyKey] = useState(() => crypto.randomUUID());
     const [items, setItems] = useState<any[]>([]);
     const [currency, setCurrencyState] = useState<"VND" | "USD">("VND");
+    const [country, setCountryState] = useState("");
     const [loading, setLoading] = useState(true);
     const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
     const [shippingFee, setShippingFee] = useState(0);
 
+    // Country drives shipping fee (Vietnam flat fee vs. international flat
+    // fee) — this is the SAME country the shared selector below writes to,
+    // so it stays correct no matter which page the shopper last touched it
+    // on, including this form.
     useEffect(() => {
+        function syncCountry() {
+            setCountryState(getCountry());
+        }
+
+        syncCountry();
+
+        window.addEventListener("country-change", syncCountry);
+        return () => window.removeEventListener("country-change", syncCountry);
+    }, []);
+
+    useEffect(() => {
+        if (!country) return;
+
         fetch("/api/settings")
             .then((r) => (r.json()) as any)
             .then((s) => {
@@ -26,53 +46,64 @@ export default function CheckoutPage() {
                 );
 
                 setShippingFee(
-                    currency === "USD"
-                        ? s.shipping_fee_usd
-                        : s.shipping_fee_vnd
+                    isVietnam(country)
+                        ? s.shipping_fee_vnd
+                        : s.shipping_fee_usd
                 );
             });
-    }, [currency]);
+    }, [country]);
 
-    useEffect(() => {
-        async function loadCart() {
-            const cart = JSON.parse(
-                localStorage.getItem("cart") || "[]"
-            );
+    async function loadCart() {
+        const cart = JSON.parse(
+            localStorage.getItem("cart") || "[]"
+        );
 
-            const currentCurrency = getCurrency();
+        const currentCurrency = getCurrency();
 
-            setCurrencyState(currentCurrency);
+        setCurrencyState(currentCurrency);
 
-            if (cart.length === 0) {
-                router.replace("/cart");
-                return;
-            }
-
-            const res = await fetch("/api/cart", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    cart,
-                    currency: currentCurrency,
-                }),
-            });
-
-            const data = (await res.json()) as any;
-
-            setItems(data);
-            setLoading(false);
+        if (cart.length === 0) {
+            router.replace("/cart");
+            return;
         }
 
+        const res = await fetch("/api/cart", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                cart,
+                currency: currentCurrency,
+            }),
+        });
+
+        const data = (await res.json()) as any;
+
+        setItems(data);
+        setLoading(false);
+    }
+
+    useEffect(() => {
         loadCart();
-    }, [router]);
+
+        window.addEventListener("currency-change", loadCart);
+        return () => window.removeEventListener("currency-change", loadCart);
+    }, []);
 
     const subtotal = items.reduce((total, item) => {
         if (!item.available) return total;
 
         return total + item.unit_price * item.quantity;
     }, 0);
+
+    function formatMoney(amount: number) {
+        return new Intl.NumberFormat(currency === "USD" ? "en-US" : "vi-VN", {
+            style: "currency",
+            currency: currency === "USD" ? "USD" : "VND",
+            maximumFractionDigits: currency === "USD" ? 2 : 0,
+        }).format(amount);
+    }
 
     if (loading) {
         return (
@@ -236,52 +267,41 @@ export default function CheckoutPage() {
 
                                     {/* Amount */}
                                     <div className="w-24 text-right text-sm">
-                                        {new Intl.NumberFormat(
-                                            currency === "USD"
-                                                ? "en-US"
-                                                : "vi-VN",
-                                            {
-                                                style: "currency",
-                                                currency:
-                                                    currency === "USD"
-                                                        ? "USD"
-                                                        : "VND",
-                                                maximumFractionDigits:
-                                                    currency === "USD"
-                                                        ? 2
-                                                        : 0,
-                                            }
-                                        ).format(
-                                            item.unit_price *
-                                            item.quantity
-                                        )}
+                                        {formatMoney(item.unit_price * item.quantity)}
                                     </div>
                                 </div>
                             ))}
 
                             {/* Subtotal */}
-                            <div className="flex items-center justify-between py-5">
+                            <div className="flex items-center justify-between border-b border-dotted border-black py-4">
                                 <span className="text-sm font-medium uppercase tracking-wide">
                                     Subtotal
                                 </span>
 
                                 <span className="text-sm font-medium">
-                                    {new Intl.NumberFormat(
-                                        currency === "USD"
-                                            ? "en-US"
-                                            : "vi-VN",
-                                        {
-                                            style: "currency",
-                                            currency:
-                                                currency === "USD"
-                                                    ? "USD"
-                                                    : "VND",
-                                            maximumFractionDigits:
-                                                currency === "USD"
-                                                    ? 2
-                                                    : 0,
-                                        }
-                                    ).format(subtotal)}
+                                    {formatMoney(subtotal)}
+                                </span>
+                            </div>
+
+                            {/* Shipping */}
+                            <div className="flex items-center justify-between py-4 text-gray-500">
+                                <span className="text-sm uppercase tracking-wide">
+                                    Shipping
+                                </span>
+
+                                <span className="text-sm">
+                                    {shippingFee === 0 ? "Free" : formatMoney(shippingFee)}
+                                </span>
+                            </div>
+
+                            {/* Total */}
+                            <div className="flex items-center justify-between py-5">
+                                <span className="text-sm font-medium uppercase tracking-wide">
+                                    Total
+                                </span>
+
+                                <span className="text-sm font-medium">
+                                    {formatMoney(subtotal + shippingFee)}
                                 </span>
                             </div>
                         </div>
@@ -319,6 +339,18 @@ export default function CheckoutPage() {
                                     return;
                                 }
 
+                                // The country code comes from the shared
+                                // CountrySelector below — the same control
+                                // and the same stored value as the footer's
+                                // and the nav's, so it can't be switched to
+                                // a different one just for this submission.
+                                const countryCode = formData.get("country") as string;
+
+                                const countryName =
+                                    new Intl.DisplayNames(["en"], { type: "region" }).of(
+                                        countryCode
+                                    ) ?? countryCode;
+
                                 const res = await fetch("/api/orders", {
                                     method: "POST",
                                     headers: {
@@ -337,17 +369,17 @@ export default function CheckoutPage() {
                                             formData.get("city"),
                                             formData.get("state"),
                                             formData.get("postalCode"),
-                                            formData.get("country"),
+                                            countryName,
                                         ]
                                             .filter(Boolean)
                                             .join(", "),
+                                        country: countryCode,
                                         notes:
                                             formData.get("notes"),
                                         paymentMethod:
                                             formData.get("paymentMethod"),
                                         cart,
                                         idempotencyKey,
-                                        currency: getCurrency(),
                                     }),
                                 });
 
@@ -456,12 +488,7 @@ export default function CheckoutPage() {
                                             className="w-full border border-black bg-white px-3 py-3 text-sm outline-none placeholder:text-gray-400 focus:bg-gray-50"
                                         />
 
-                                        <input
-                                            name="country"
-                                            placeholder="Country"
-                                            required
-                                            className="w-full border border-black bg-white px-3 py-3 text-sm outline-none placeholder:text-gray-400 focus:bg-gray-50"
-                                        />
+                                        <CountrySelector variant="checkout" />
                                     </div>
 
                                 </div>

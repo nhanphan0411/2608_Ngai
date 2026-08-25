@@ -5,18 +5,31 @@ export default function Pagination({
   totalItems,
   pageSize,
   basePath,
+  extraParams = {},
 }: {
   currentPage: number;
   totalItems: number;
   pageSize: number;
   basePath: string;
+  // Non-page query params (sort, collection, category…) to carry along
+  // when moving between pages, so paging doesn't silently drop a filter.
+  extraParams?: Record<string, string | undefined>;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   if (totalPages <= 1) return null;
 
   function pageHref(page: number) {
-    return page === 1 ? basePath : `${basePath}?page=${page}`;
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(extraParams)) {
+      if (value) params.set(key, value);
+    }
+
+    if (page !== 1) params.set("page", String(page));
+
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
   }
 
   return (

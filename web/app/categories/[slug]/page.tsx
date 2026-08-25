@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { getCategoryBySlug } from "@/lib/categories";
-import { getProductsByCategoryPaginated, PRODUCTS_PAGE_SIZE } from "@/lib/db/products";
+import { getProductsFiltered, PRODUCTS_PAGE_SIZE, type ProductSort } from "@/lib/db/products";
 import { buildProductCards } from "@/lib/db/productCards";
+import { getActiveCollections, getCollectionBySlug } from "@/lib/db/collections";
 import ProductGrid from "@/components/ProductGrid";
 import { notFound } from "next/navigation";
 
@@ -23,16 +24,28 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string; collection?: string }>;
 }) {
   const { slug } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, sort: sortParam, collection: collectionSlug } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const sort: ProductSort = sortParam === "name" ? "name" : "feature";
 
   const category = getCategoryBySlug(slug);
   if (!category) return notFound();
 
-  const { products, total } = await getProductsByCategoryPaginated(category.name, page);
+  const [collection, activeCollections] = await Promise.all([
+    collectionSlug ? getCollectionBySlug(collectionSlug) : null,
+    getActiveCollections(),
+  ]);
+
+  const { products, total } = await getProductsFiltered({
+    collectionId: collection?.id,
+    categoryName: category.name,
+    sort,
+    page,
+  });
+
   const cards = await buildProductCards(products);
 
   return (
@@ -44,6 +57,12 @@ export default async function CategoryPage({
         totalItems={total}
         pageSize={PRODUCTS_PAGE_SIZE}
         basePath={`/categories/${slug}`}
+        sort={sort}
+        collectionOptions={activeCollections.map((c) => ({
+          slug: c.collection_slug,
+          name: c.collection_name,
+        }))}
+        currentCollection={collection?.collection_slug}
       />
     </main>
   );

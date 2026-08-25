@@ -5,6 +5,7 @@ import { getInventory } from "@/lib/db/inventory";
 import { getAllImagesForProduct } from "@/lib/db/images";
 import { buildProductOptions } from "@/lib/productOptions";
 import { getSizeGuideById } from "@/lib/db/sizeGuides";
+import { getCollection } from "@/lib/db/collections";
 import ProductDetails from "@/components/ProductDetails";
 import { notFound } from "next/navigation";
 
@@ -41,10 +42,12 @@ export default async function ProductPage({
   const images: any[] = await getAllImagesForProduct(product.id);
   const options = buildProductOptions(inventory);
   const sizeGuide = product.size_guide_id ? await getSizeGuideById(product.size_guide_id) : null;
+  const collection = await getCollection(product.collection_id);
 
   return (
     <ProductDetails
       product={product}
+      collection={collection}
       options={options}
       variants={inventory}
       sizeGuide={sizeGuide}
